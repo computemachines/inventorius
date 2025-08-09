@@ -38,10 +38,18 @@ services:
     volumes:
       - ./nginx/inventorius.conf:/etc/nginx/conf.d/inventorius.conf:ro
       # mount your certs (Let’s Encrypt layout shown as example)
-      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - letsencrypt:/etc/letsencrypt:ro
     networks: [inventorius]
 
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot-challenges:/var/www/html
+
 volumes:
+  letsencrypt:
   mongo_data:
 
 networks:
