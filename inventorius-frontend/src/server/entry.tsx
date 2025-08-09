@@ -20,7 +20,8 @@ import App from "../components/App";
 import { ApiClient } from "../api-client/api-client";
 import { version } from "os";
 
-const API_HOSTNAME = "http://localhost:8081";
+// Use API_HOSTNAME from env if available; fallback to docker service name
+const API_HOSTNAME = process.env.API_HOSTNAME || "http://api:8000";
 
 const doc = `
 Usage:
