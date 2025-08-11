@@ -9,12 +9,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
 # copy and install python deps
-COPY inventorius-api/requirements.txt /app/requirements.txt
+COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt \
     && pip install --no-cache-dir gunicorn
 
 # copy source
-COPY inventorius-api/src /app/src
+COPY src /app/src
 
 # env for module discovery
 ENV PYTHONPATH=/app/src

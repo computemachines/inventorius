@@ -1,8 +1,8 @@
 
 SHELL := /bin/sh
 
-COMPOSE_DEV := docker-compose.dev.yml
-COMPOSE_PROD := docker-compose.yml
+COMPOSE_DEV := ./docker-compose.dev.yml
+COMPOSE_PROD := ./docker-compose.yml
 
 .PHONY: dev-up dev-rebuild dev-down dev-logs \
         prod-up prod-rebuild prod-reload prod-down prod-logs \
