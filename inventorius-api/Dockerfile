@@ -5,7 +5,7 @@ WORKDIR /app
 
 # system deps for Wand/ImageMagick if used at runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libmagickwand-6.q16-6 \
+    libmagickwand-6.q16-7 \
   && rm -rf /var/lib/apt/lists/*
 
 # copy and install python deps
