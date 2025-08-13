@@ -18,4 +18,4 @@ jobs:
       - name: Build API image
         run: docker build -t inventorius-api ./inventorius-api
       - name: Run tests
-        run: docker run --network ${{ job.services.mongo.network }} -e INVENTORIUS_MONGO_HOST=mongo inventorius-api pytest
+        run: docker run --network ${{ job.services.mongo.network }} -e INVENTORIUS_MONGO_HOST=mongo  -v ${{ github.workspace }}/inventorius-api:/app -w /app inventorius-api pytest
