@@ -1,0 +1,21 @@
+name: API tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build -t inventorius-api ./inventorius-api
+      - name: Run tests
+        run: docker run --network ${{ job.services.mongo.network }} -e INVENTORIUS_MONGO_HOST=mongo inventorius-api pytest
