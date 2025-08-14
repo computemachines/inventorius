@@ -120,10 +120,10 @@ currency = base_unit("USD")
 
 props_schema = Schema(
     {
-        "cost_per_case": currency,
-        "original_cost_per_case": currency,
-        "count_per_case": int,
-        "original_count_per_case": int,
+        "cost_per_case": NoneOr(currency),
+        "original_cost_per_case": NoneOr(currency),
+        "count_per_case": NoneOr(int),
+        "original_count_per_case": NoneOr(int),
     },
     extra=ALLOW_EXTRA,
 )

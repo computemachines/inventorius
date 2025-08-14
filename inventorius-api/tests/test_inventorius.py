@@ -5,7 +5,7 @@ from datetime import timedelta
 import hypothesis.strategies as st
 import pytest
 from conftest import clientContext
-from hypothesis import assume, given, reproduce_failure, settings
+from hypothesis import assume, given, reproduce_failure, settings, HealthCheck
 from hypothesis.errors import NonInteractiveExampleWarning
 from hypothesis.stateful import (
     Bundle,
@@ -762,10 +762,16 @@ class InventoriusStateMachine(RuleBasedStateMachine):
 
 TestInventorius = InventoriusStateMachine.TestCase
 if os.getenv("HYPOTHESIS_SLOW") == "true":
-    TestInventorius.settings = settings(max_examples=10000, stateful_step_count=10, deadline=timedelta(seconds=10))
+    TestInventorius.settings = settings(
+        max_examples=10000,
+        stateful_step_count=10,
+        deadline=timedelta(seconds=10),
+        suppress_health_check=[HealthCheck.too_slow],
+    )
 else:
     TestInventorius.settings = settings(
         max_examples=1000,
         stateful_step_count=10,
         deadline=timedelta(milliseconds=100),
+        suppress_health_check=[HealthCheck.too_slow],
     )
