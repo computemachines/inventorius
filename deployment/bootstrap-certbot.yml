@@ -1,0 +1,86 @@
+---
+- name: Bootstrap SSL certificates with certbot standalone
+  hosts: inventorius
+  become: true
+  vars:
+    app_dir: /opt/inventorius
+    domains: "inventori.us"
+    email: "tompark@computemachines.com"
+    cert_dir: "{{ app_dir }}/letsencrypt"
+
+  tasks:
+    # Ensure letsencrypt directory exists
+    - name: Ensure letsencrypt directory exists
+      ansible.builtin.file:
+        path: "{{ cert_dir }}"
+        state: directory
+        mode: '0755'
+
+    # Stop any containers that might be using port 80
+    - name: Stop any existing nginx containers using shell
+      ansible.builtin.shell:
+        cmd: |
+          docker stop {{ item }} 2>/dev/null || true
+          docker rm {{ item }} 2>/dev/null || true
+      loop:
+        - inventorius-nginx-1
+        - nginx
+      ignore_errors: true
+
+    # Check if certificates already exist and are valid
+    - name: Check if SSL certificates exist
+      ansible.builtin.stat:
+        path: "{{ cert_dir }}/live/inventori.us/fullchain.pem"
+      register: ssl_cert
+
+    - name: Check certificate expiration (if exists)
+      ansible.builtin.command:
+        cmd: openssl x509 -checkend 2592000 -noout -in "{{ cert_dir }}/live/inventori.us/fullchain.pem"
+      register: cert_valid
+      ignore_errors: true
+      when: ssl_cert.stat.exists
+
+    - name: Skip certificate generation if valid certificates exist
+      ansible.builtin.debug:
+        msg: "Valid SSL certificates already exist, skipping generation"
+      when: ssl_cert.stat.exists and cert_valid.rc == 0
+
+    # Generate certificates using certbot standalone mode
+    - name: Generate SSL certificates with certbot standalone
+      ansible.builtin.shell:
+        cmd: |
+          docker run --rm \
+            -p 80:80 \
+            -v "{{ cert_dir }}:/etc/letsencrypt" \
+            certbot/certbot \
+            certonly \
+            --dry-run \
+            --standalone \
+            --non-interactive \
+            --agree-tos \
+            --email {{ email }} \
+            --domains {{ domains }} \
+            --expand \
+            --keep-until-expiring
+      when: not ssl_cert.stat.exists or cert_valid.rc != 0
+      register: certbot_result
+
+    - name: Display certbot output
+      ansible.builtin.debug:
+        var: certbot_result.stdout_lines
+      when: certbot_result is defined and certbot_result.changed
+
+    # Verify certificates were created successfully
+    - name: Verify SSL certificates were created
+      ansible.builtin.stat:
+        path: "{{ cert_dir }}/live/inventori.us/fullchain.pem"
+      register: ssl_cert_final
+
+    - name: Fail if certificates were not created
+      ansible.builtin.fail:
+        msg: "SSL certificate generation failed - certificate files not found"
+      when: not ssl_cert_final.stat.exists
+
+    - name: SSL certificate bootstrap completed successfully
+      ansible.builtin.debug:
+        msg: "SSL certificates are ready. Docker services can now be started with HTTPS support."

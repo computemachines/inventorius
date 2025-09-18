@@ -1,0 +1,115 @@
+---
+- name: Deploy Inventorius to VPS
+  hosts: inventorius
+  become: true
+  vars:
+    app_dir: /opt/inventorius
+    image_dir: /opt/inventorius/images
+    meili_master_key: "{{ lookup('env', 'MEILI_MASTER_KEY') | default('change_this_key', true) }}"
+    domain: "inventori.us"
+    email: "your@email.com"
+    services_needing_restart: []
+
+  tasks:
+    # Ensure directories exist
+    - name: Ensure application directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ app_dir }}"
+        - "{{ app_dir }}/nginx"
+        - "{{ image_dir }}"
+
+    # Copy configuration files and track changes
+    - name: Copy docker-compose file
+      ansible.builtin.copy:
+        src: docker-compose.yml
+        dest: "{{ app_dir }}/docker-compose.yml"
+        mode: '0644'
+      register: compose_file
+      
+    - name: Copy nginx configuration
+      ansible.builtin.copy:
+        src: ../nginx/inventorius.conf
+        dest: "{{ app_dir }}/nginx/inventorius.conf"
+        mode: '0644'
+      register: nginx_conf
+      
+    - name: Create environment file
+      ansible.builtin.template:
+        src: .env.j2
+        dest: "{{ app_dir }}/.env"
+        mode: '0600'
+      register: env_file
+        
+    # Track config changes that require restart
+    - name: Check if configs changed
+      ansible.builtin.set_fact:
+        config_changed: "{{ compose_file.changed or nginx_conf.changed or env_file.changed }}"
+      
+    # Image handling with checksums for efficiency
+    - name: Check local image checksums
+      delegate_to: localhost
+      become: no
+      ansible.builtin.stat:
+        path: "../dist/{{ item }}.tar.gz"
+      loop:
+        - "inventorius-api"
+        - "inventorius-frontend"
+      register: local_images
+      
+    - name: Check remote image checksums
+      ansible.builtin.stat:
+        path: "{{ image_dir }}/{{ item.item }}.tar.gz"
+      loop: "{{ local_images.results }}"
+      register: remote_images
+      
+    - name: Compare checksums and determine which images need transfer
+      ansible.builtin.set_fact:
+        images_to_update: "{{ images_to_update | default([]) + [item.0.item] }}"
+      loop: "{{ local_images.results | zip(remote_images.results) | list }}"
+      when: >
+        not item.1.stat.exists or 
+        item.0.stat.checksum != item.1.stat.checksum
+      
+    - name: Copy changed container images
+      ansible.builtin.copy:
+        src: "../dist/{{ item }}.tar.gz"
+        dest: "{{ image_dir }}/{{ item }}.tar.gz"
+      loop: "{{ images_to_update | default([]) }}"
+      when: images_to_update is defined and images_to_update | length > 0
+      register: image_copy
+      
+    - name: Load changed container images
+      ansible.builtin.command:
+        cmd: "docker load -i {{ image_dir }}/{{ item }}.tar.gz"
+      loop: "{{ images_to_update | default([]) }}"
+      when: images_to_update is defined and images_to_update | length > 0
+      
+    # Determine which services need restart
+    - name: Track services that need restart due to image changes
+      ansible.builtin.set_fact:
+        services_needing_restart: >
+          {{ services_needing_restart + [item | regex_replace('inventorius-([^.]+).*', '\\1')] }}
+      loop: "{{ images_to_update | default([]) }}"
+      when: images_to_update is defined and images_to_update | length > 0
+      
+    - name: Check if any services need restart
+      ansible.builtin.set_fact:
+        need_restart: "{{ config_changed or services_needing_restart | length > 0 }}"
+      
+    # Start or update services
+    - name: Start/update services with docker compose
+      ansible.builtin.shell:
+        cmd: /opt/bin/docker-compose up -d
+        chdir: "{{ app_dir }}"
+      when: need_restart | bool
+      
+    # Only restart specific services if configs unchanged but images updated
+    - name: Recreate only updated services
+      ansible.builtin.shell:
+        cmd: /opt/bin/docker-compose up -d --force-recreate {{ services_needing_restart | join(' ') }}
+        chdir: "{{ app_dir }}"
+      when: not config_changed and services_needing_restart | length > 0

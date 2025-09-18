@@ -11,7 +11,7 @@ services:
 
   api:
     build:
-      context: ./inventorius-api
+      context: ../inventorius-api
       dockerfile: Dockerfile
     environment:
       INVENTORIUS_MONGO_HOST: mongo
@@ -21,7 +21,7 @@ services:
 
   frontend:
     build:
-      context: ./inventorius-frontend
+      context: ../inventorius-frontend
       dockerfile: Dockerfile
     environment:
       NODE_ENV: development
@@ -35,7 +35,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro
     networks: [inventorius]
 
 volumes:

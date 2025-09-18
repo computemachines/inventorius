@@ -1,0 +1,11 @@
+---
+# Master playbook to bootstrap a fresh Flatcar server with all dependencies
+# Runs: bootstrap-python.yaml -> deploy-deps.yml -> docker-check.yaml
+- name: Bootstrap Python on Flatcar
+  import_playbook: bootstrap-python.yaml
+
+- name: Setup deployment dependencies
+  import_playbook: deploy-deps.yml
+
+- name: Verify Docker is running
+  import_playbook: docker-check.yaml

@@ -1,0 +1,42 @@
+# docker_check.yml
+---
+- name: Ensure Docker is running and report version
+  hosts: all
+  gather_facts: false
+  become: true
+  vars:
+    go_server_version_expr: "{{ '{{.Server.Version}}' }}"
+  tasks:
+    - name: Make sure docker is enabled and started
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Report docker active state
+      ansible.builtin.command:
+        argv: [systemctl, is-active, docker]
+      register: docker_active
+      changed_when: false
+      failed_when: docker_active.rc not in [0,3]   # 3 = inactive
+
+    - name: Report docker enabled state
+      ansible.builtin.command:
+        argv: [systemctl, is-enabled, docker]
+      register: docker_enabled
+      changed_when: false
+      failed_when: docker_enabled.rc not in [0,1]  # 1 = disabled
+
+    - name: Get docker server version via Go template
+      ansible.builtin.command:
+        argv: [docker, version, --format, "{{ go_server_version_expr }}"]
+      register: docker_version
+      changed_when: false
+      check_mode: false
+
+    - name: Show states and version
+      ansible.builtin.debug:
+        msg:
+          active: "{{ docker_active.stdout | default('unknown') }}"
+          enabled: "{{ docker_enabled.stdout | default('unknown') }}"
+          version: "{{ docker_version.stdout | default('n/a') }}"

@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   mongo:
-    image: mongo:7
+    image: mongo:7.0
     restart: unless-stopped
     volumes:
       - mongo_data:/data/db
@@ -19,6 +19,20 @@ services:
     depends_on: [mongo]
     networks: [inventorius]
 
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on: [frontend, api]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/inventorius.conf:/etc/nginx/conf.d/inventorius.conf:ro
+      # mount your certs (Let's Encrypt layout shown as example)
+      - ./letsencrypt:/etc/letsencrypt:ro
+      - certbot-challenges:/var/www/html:ro
+    command: sh -c "rm -f /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
+    networks: [inventorius]
+
   frontend:
     build:
       context: ./inventorius-frontend
@@ -29,27 +43,21 @@ services:
       API_HOSTNAME: http://api:8000
     networks: [inventorius]
 
-  nginx:
-    image: nginx:1.27-alpine
-    depends_on: [frontend, api]
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/inventorius.conf:/etc/nginx/conf.d/inventorius.conf:ro
-      # mount your certs (Let’s Encrypt layout shown as example)
-      - letsencrypt:/etc/letsencrypt:ro
-    networks: [inventorius]
-
-
   certbot:
     image: certbot/certbot
+    restart: unless-stopped
+    command: >
+      sh -c "while :; do
+        sleep 12h & wait $${!};
+        certbot renew --webroot -w /var/www/html --quiet
+      done"
     volumes:
-      - letsencrypt:/etc/letsencrypt
+      - ./letsencrypt:/etc/letsencrypt
       - certbot-challenges:/var/www/html
+    depends_on: [nginx]
 
 volumes:
-  letsencrypt:
+  certbot-challenges:
   mongo_data:
 
 networks:

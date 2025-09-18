@@ -1,0 +1,104 @@
+---
+- name: Setup deployment dependencies for Flatcar Linux
+  hosts: all
+  gather_facts: true
+  vars:
+    # Docker Compose version to install
+    docker_compose_version: "v2.32.4"
+    docker_compose_url: "https://github.com/docker/compose/releases/download/{{ docker_compose_version }}/docker-compose-linux-x86_64"
+    # Python dependencies for ansible docker modules
+    pip_packages:
+      - requests
+      - docker
+
+  tasks:
+    - name: Ensure .local/bin directory exists
+      file:
+        path: "{{ ansible_env.HOME }}/.local/bin"
+        state: directory
+        mode: '0755'
+      become: false
+
+    - name: Check if docker-compose is already installed with correct version
+      stat:
+        path: "{{ ansible_env.HOME }}/.local/bin/docker-compose"
+      register: docker_compose_stat
+
+    - name: Check current docker-compose version (if exists)
+      command: "{{ ansible_env.HOME }}/.local/bin/docker-compose version --short"
+      register: current_compose_version
+      failed_when: false
+      changed_when: false
+      when: docker_compose_stat.stat.exists
+
+    - name: Download docker-compose
+      get_url:
+        url: "{{ docker_compose_url }}"
+        dest: "{{ ansible_env.HOME }}/.local/bin/docker-compose"
+        mode: '0755'
+      become: false
+      when: >
+        not docker_compose_stat.stat.exists or 
+        (current_compose_version.stdout is defined and 
+         docker_compose_version not in current_compose_version.stdout)
+
+    - name: Verify docker-compose installation
+      command: "{{ ansible_env.HOME }}/.local/bin/docker-compose version"
+      register: compose_version_check
+      changed_when: false
+      become: false
+    - name: Show docker-compose version
+      debug:
+        msg: "Docker Compose installed: {{ compose_version_check.stdout_lines[0] | default('Unknown') }}"
+
+    - name: Ensure pip is available (ensurepip)
+      command: "{{ ansible_python_interpreter }} -m ensurepip --user"
+      register: ensurepip_result
+      failed_when: false
+      changed_when: "'Successfully installed' in ensurepip_result.stdout"
+      become: false
+
+    - name: Install Python packages for ansible docker modules
+      pip:
+        name: "{{ pip_packages }}"
+        extra_args: --user
+        executable: "{{ ansible_env.HOME }}/.local/bin/pip3"
+      become: false
+
+    - name: Test docker connectivity
+      command: docker info
+      register: docker_info
+      changed_when: false
+      become: true
+
+    - name: Show docker status
+      debug:
+        msg: "Docker is running and accessible"
+      when: docker_info.rc == 0
+
+    - name: Check if docker-compose wrapper exists
+      stat:
+        path: /opt/bin/docker-compose
+      register: wrapper_stat
+
+    - name: Create docker-compose wrapper for system PATH
+      copy:
+        dest: /opt/bin/docker-compose
+        content: |
+          #!/bin/bash
+          exec {{ ansible_env.HOME }}/.local/bin/docker-compose "$@"
+        mode: '0755'
+      become: true
+      when: not wrapper_stat.stat.exists
+
+    - name: Verify final docker-compose installation
+      command: /opt/bin/docker-compose version
+      register: final_compose_check
+      changed_when: false
+
+    - name: Show final installation status
+      debug:
+        msg:
+          - "Docker Compose Version: {{ final_compose_check.stdout_lines[0] | default('Not found') }}"
+          - "Installation complete: docker-compose is available system-wide at /opt/bin/docker-compose"
+          - "Available in login shell PATH: /opt/bin is included in Flatcar's default PATH"

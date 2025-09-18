@@ -1,0 +1,16 @@
+---
+- name: Full Inventorius deployment with SSL bootstrap
+  hosts: inventorius
+  become: true
+  vars:
+    app_dir: /opt/inventorius
+
+  tasks:
+    - name: Run bootstrap infrastructure
+      ansible.builtin.include: bootstrap-all.yml
+
+    - name: Run SSL certificate bootstrap
+      ansible.builtin.include: bootstrap-certbot.yml
+
+    - name: Run application deployment
+      ansible.builtin.include: deploy.yml

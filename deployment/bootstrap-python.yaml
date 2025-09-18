@@ -1,0 +1,64 @@
+# Install PyPy under /home/core/.opt and switch Ansible to use it.
+# Requires: working wget OR curl on the remote.
+- name: setup python for flatcar (PyPy tarball)
+  hosts: all
+  gather_facts: false
+  vars:
+    core_home: /home/core
+    install_root: /home/core/.opt
+    pypy_dir: /home/core/.opt/pypy
+    # Pin these to whatever you want:
+    python_series: "3.11"        # PyPy's Python version line (e.g., 3.11)
+    pypy_version: "7.3.19"       # PyPy release (must match the tarball)
+    tarball: "pypy{{ python_series }}-v{{ pypy_version }}-linux64.tar.bz2"
+    url: "https://downloads.python.org/pypy/{{ tarball }}"
+  tasks:
+    - name: 0) Check if PyPy is already installed
+      raw: "[ -x '{{ pypy_dir }}/bin/pypy3' ] && echo installed || echo missing"
+      register: py_state
+      changed_when: false
+
+    - name: Skip installation if PyPy already exists
+      meta: end_host
+      when: py_state.stdout_lines | first | default('missing') == 'installed'
+
+    - name: 1) Ensure install root exists and is user-writable
+      raw: "mkdir -p {{ install_root }} && chmod a+rx {{ core_home }} {{ install_root }}"
+      changed_when: false
+
+    - name: 2) Download and extract PyPy (curl/wget fallback)
+      raw: |
+        set -e
+        cd {{ install_root }}
+        if command -v curl >/dev/null 2>&1; then
+          curl -fsSL "{{ url }}" | tar xj
+        else
+          wget -O - "{{ url }}" | tar xj
+        fi
+
+    - name: 3) Move extracted dir into final location (idempotent)
+      raw: |
+        set -e
+        src="$(ls -1d {{ install_root }}/pypy{{ python_series }}-v{{ pypy_version }}-linux64 2>/dev/null | head -n 1)"
+        if [ -z "$src" ]; then
+          echo "PyPy source dir not found under {{ install_root }}" >&2
+          exit 1
+        fi
+        rm -rf "{{ pypy_dir }}"
+        mv "$src" "{{ pypy_dir }}"
+        chmod -R a+rX "{{ pypy_dir }}"
+
+    # At this point, we have {{ pypy_dir }}/bin/pypy3 available.
+    # Tell Ansible to use it going forward, then reconnect.
+    - name: 4) Point Ansible at PyPy
+      set_fact:
+        ansible_python_interpreter: "{{ pypy_dir }}/bin/pypy3"
+
+    - name: 5) Reset connection so interpreter takes effect
+      meta: reset_connection
+
+    - name: 6) Verify python (now using the configured interpreter)
+      command: "{{ ansible_python_interpreter }} -V"
+      register: pyv
+
+    - debug: var=pyv.stdout
