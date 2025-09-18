@@ -1,1 +1,7 @@
 ci_cd_ed25519
+
+# Ansible retry files
+ansible-retry/
+
+# Docker build artifacts  
+dist/
