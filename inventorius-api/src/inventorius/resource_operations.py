@@ -85,3 +85,55 @@ def mixture_append_audit(mix_id):
         url_for("mixture.mixture_append_audit", mix_id=mix_id),
         "Mixture audit entry",
     )
+
+
+def step_template_create():
+    return operation(
+        "create",
+        POST,
+        url_for("step_template.step_templates_post"),
+        "Step template definition",
+    )
+
+
+def step_template_update(template_id):
+    return operation(
+        "update",
+        PATCH,
+        url_for("step_template.step_template_patch", template_id=template_id),
+        "Step template definition",
+    )
+
+
+def step_template_delete(template_id):
+    return operation(
+        "delete",
+        DELETE,
+        url_for("step_template.step_template_delete", template_id=template_id),
+    )
+
+
+def step_instance_create():
+    return operation(
+        "create",
+        POST,
+        url_for("step_instance.step_instances_post"),
+        "Step instance definition",
+    )
+
+
+def step_instance_update(instance_id):
+    return operation(
+        "update",
+        PATCH,
+        url_for("step_instance.step_instance_patch", instance_id=instance_id),
+        "Step instance patch",
+    )
+
+
+def step_instance_delete(instance_id):
+    return operation(
+        "delete",
+        DELETE,
+        url_for("step_instance.step_instance_delete", instance_id=instance_id),
+    )

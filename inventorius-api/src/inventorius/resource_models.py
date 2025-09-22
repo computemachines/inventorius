@@ -11,6 +11,8 @@ from inventorius.data_models import (
     Batch,
     Bin,
     Mixture,
+    StepInstance,
+    StepTemplate,
 )
 import inventorius.resource_operations as operations
 
@@ -218,6 +220,100 @@ class MixtureEndpoint(HypermediaEndpoint):
 
     def updated_success_response(self):
         return self.get_response(status_code=200)
+
+
+class StepTemplateEndpoint(HypermediaEndpoint):
+    @classmethod
+    def from_template(cls, template: StepTemplate):
+        endpoint = StepTemplateEndpoint(
+            resource_uri=url_for(
+                "step_template.step_template_get", template_id=template.template_id
+            ),
+            state=template.to_dict(mask_default=True),
+            operations=[
+                operations.step_template_update(template.template_id),
+                operations.step_template_delete(template.template_id),
+                operations.step_instance_create(),
+            ],
+        )
+        endpoint.template = template
+        return endpoint
+
+    @classmethod
+    def from_id(cls, template_id: str, retrieve=False):
+        if retrieve:
+            template_doc = StepTemplate.from_mongodb_doc(
+                db.step_template.find_one({"_id": template_id})
+            )
+            if template_doc is None:
+                return None
+            return cls.from_template(template_doc)
+
+        endpoint = StepTemplateEndpoint(
+            resource_uri=url_for("step_template.step_template_get", template_id=template_id),
+            operations=[
+                operations.step_template_update(template_id),
+                operations.step_template_delete(template_id),
+                operations.step_instance_create(),
+            ],
+        )
+        endpoint.template_id = template_id
+        return endpoint
+
+    def created_success_response(self):
+        return self.status_response("step template created", status_code=201)
+
+    def updated_success_response(self):
+        return self.status_response("step template updated")
+
+    def deleted_success_response(self):
+        return self.status_response("step template deleted")
+
+
+class StepInstanceEndpoint(HypermediaEndpoint):
+    @classmethod
+    def from_instance(cls, instance: StepInstance):
+        endpoint = StepInstanceEndpoint(
+            resource_uri=url_for(
+                "step_instance.step_instance_get", instance_id=instance.instance_id
+            ),
+            state=instance.to_dict(mask_default=True),
+            operations=[
+                operations.step_instance_update(instance.instance_id),
+                operations.step_instance_delete(instance.instance_id),
+            ],
+        )
+        endpoint.instance = instance
+        return endpoint
+
+    @classmethod
+    def from_id(cls, instance_id: str, retrieve=False):
+        if retrieve:
+            instance_doc = StepInstance.from_mongodb_doc(
+                db.step_instance.find_one({"_id": instance_id})
+            )
+            if instance_doc is None:
+                return None
+            return cls.from_instance(instance_doc)
+
+        endpoint = StepInstanceEndpoint(
+            resource_uri=url_for("step_instance.step_instance_get", instance_id=instance_id),
+            operations=[
+                operations.step_instance_update(instance_id),
+                operations.step_instance_delete(instance_id),
+            ],
+        )
+        endpoint.instance_id = instance_id
+        return endpoint
+
+    def created_success_response(self):
+        return self.status_response("step instance created", status_code=201)
+
+    def updated_success_response(self):
+        return self.status_response("step instance updated")
+
+    def deleted_success_response(self):
+        return self.status_response("step instance deleted")
 
 
 class BatchBinsEndpoint(HypermediaEndpoint):

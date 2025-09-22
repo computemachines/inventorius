@@ -439,3 +439,164 @@ class Mixture(DataModel):
             self.components = []
         if self.audit is None:
             self.audit = []
+
+
+def consumed_items_to_bson(consumed_items):
+    if consumed_items is None:
+        return None
+
+    bson_items = []
+    for item in consumed_items:
+        if item is None:
+            continue
+        converted = {
+            "resource_id": item.get("resource_id"),
+            "resource_type": item.get("resource_type"),
+            "bin_id": item.get("bin_id"),
+            "quantity": quantity_to_bson(item.get("quantity")),
+        }
+
+        if "remaining_qty" in item:
+            converted["remaining_qty"] = quantity_to_bson(
+                item.get("remaining_qty")
+            )
+
+        components = item.get("components")
+        if components is not None:
+            converted_components = []
+            for component in components:
+                if component is None:
+                    continue
+                converted_components.append(
+                    {
+                        "batch_id": component.get("batch_id"),
+                        "qty_initial": quantity_to_bson(
+                            component.get("qty_initial")
+                        ),
+                        "qty_remaining": quantity_to_bson(
+                            component.get("qty_remaining")
+                        ),
+                    }
+                )
+            converted["components"] = converted_components
+
+        bson_items.append(converted)
+    return bson_items
+
+
+def consumed_items_from_bson(consumed_items):
+    if consumed_items is None:
+        return None
+
+    normalized = []
+    for item in consumed_items:
+        if item is None:
+            continue
+        normalized_item = {
+            "resource_id": item.get("resource_id"),
+            "resource_type": item.get("resource_type"),
+            "bin_id": item.get("bin_id"),
+            "quantity": quantity_from_bson(item.get("quantity")),
+        }
+
+        if "remaining_qty" in item:
+            normalized_item["remaining_qty"] = quantity_from_bson(
+                item.get("remaining_qty")
+            )
+
+        components = item.get("components")
+        if components is not None:
+            normalized_components = []
+            for component in components:
+                if component is None:
+                    continue
+                normalized_components.append(
+                    {
+                        "batch_id": component.get("batch_id"),
+                        "qty_initial": quantity_from_bson(
+                            component.get("qty_initial")
+                        ),
+                        "qty_remaining": quantity_from_bson(
+                            component.get("qty_remaining")
+                        ),
+                    }
+                )
+            normalized_item["components"] = normalized_components
+
+        normalized.append(normalized_item)
+    return normalized
+
+
+def produced_items_to_bson(produced_items):
+    if produced_items is None:
+        return None
+
+    bson_items = []
+    for item in produced_items:
+        if item is None:
+            continue
+        converted = {
+            "batch_id": item.get("batch_id"),
+            "sku_id": item.get("sku_id"),
+            "bin_id": item.get("bin_id"),
+            "quantity": quantity_to_bson(item.get("quantity")),
+        }
+
+        for optional_key in ("name", "notes", "props", "owned_codes", "associated_codes", "codes"):
+            if optional_key in item:
+                converted[optional_key] = item.get(optional_key)
+
+        bson_items.append(converted)
+    return bson_items
+
+
+def produced_items_from_bson(produced_items):
+    if produced_items is None:
+        return None
+
+    normalized = []
+    for item in produced_items:
+        if item is None:
+            continue
+        normalized_item = {
+            "batch_id": item.get("batch_id"),
+            "sku_id": item.get("sku_id"),
+            "bin_id": item.get("bin_id"),
+            "quantity": quantity_from_bson(item.get("quantity")),
+        }
+
+        for optional_key in ("name", "notes", "props", "owned_codes", "associated_codes", "codes"):
+            if optional_key in item:
+                normalized_item[optional_key] = item.get(optional_key)
+
+        normalized.append(normalized_item)
+    return normalized
+
+
+class StepTemplate(DataModel):
+    template_id = DataField("_id", required=True)
+    name = DataField("name")
+    description = DataField("description")
+    inputs = DataField("inputs", default=[])
+    outputs = DataField("outputs", default=[])
+    metadata = DataField("metadata", default={})
+
+
+class StepInstance(DataModel):
+    instance_id = DataField("_id", required=True)
+    template_id = DataField("template_id", required=True)
+    operator = DataField("operator", default={})
+    notes = DataField("notes")
+    metadata = DataField("metadata", default={})
+    consumed = DataField(
+        "consumed",
+        default=[],
+        value_to_bson=consumed_items_to_bson,
+        bson_to_value=consumed_items_from_bson,
+    )
+    produced = DataField(
+        "produced",
+        default=[],
+        value_to_bson=produced_items_to_bson,
+        bson_to_value=produced_items_from_bson,
+    )

@@ -44,5 +44,7 @@ def clientContext():
     test_db.bin.delete_many({})
     test_db.sku.delete_many({})
     test_db.mixture.delete_many({})
+    test_db.step_template.delete_many({})
+    test_db.step_instance.delete_many({})
     test_db.user.delete_many({})
     yield inventorius_flask_app.test_client()
