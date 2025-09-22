@@ -555,7 +555,21 @@ export class NextBatch extends RestEndpoint {
   }
 }
 
-export type SearchResult = SkuState | BatchState | BinState;
+export interface MixtureSearchResult {
+  id: string;
+  mix_id?: string;
+  sku_id?: string;
+  bin_id?: string;
+  qty_total?: number;
+  name?: string;
+  [key: string]: unknown;
+}
+
+export type SearchResult =
+  | SkuState
+  | BatchState
+  | BinState
+  | MixtureSearchResult;
 export class SearchResults extends RestEndpoint {
   kind: "search-results" = "search-results";
   state: {
@@ -575,6 +589,11 @@ export function isBinState(result: SearchResult): result is BinState {
 }
 export function isBatchState(result: SearchResult): result is BatchState {
   return result.id.startsWith("BAT");
+}
+export function isMixtureState(
+  result: SearchResult
+): result is MixtureSearchResult {
+  return result.id.startsWith("MIX");
 }
 
 // type Sku = {

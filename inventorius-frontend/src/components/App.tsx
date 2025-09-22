@@ -28,7 +28,7 @@ import Receive from "./Receive";
 import MoveItem from "./MoveItem";
 import Release from "./Release";
 import Audit from "./Audit";
-import MixtureDetail from "./MixtureDetail";
+import Mixture from "./Mixture";
 import StepTemplateList from "./StepTemplateList";
 import StepTemplateDetail from "./StepTemplateDetail";
 import StepInstanceList from "./StepInstanceList";
@@ -97,7 +97,7 @@ function App() {
                   <Batch />
                 </Route>
                 <Route path="/mixture/:id">
-                  <MixtureDetail />
+                  <Mixture />
                 </Route>
                 <Route exact path="/step-templates">
                   <StepTemplateList />
