@@ -71,6 +71,17 @@ id_schema = All(Length(1), str, non_empty_string, non_whitespace, alphanum)
 password_schema = All(Length(8), str)
 code_list_schema = [All(non_empty_string, non_whitespace)]
 
+
+code_metadata_schema = Schema(
+    {
+        Required("code"): All(non_empty_string, non_whitespace),
+        "metadata": dict,
+    },
+    extra=ALLOW_EXTRA,
+)
+
+codes_schema = Schema([code_metadata_schema])
+
 # def code_list(codes):
 #     if any(re.search('\\s', code) or code == '' for code in codes):
 #         raise Invalid(f"")
@@ -136,6 +147,9 @@ new_batch_schema = Schema(
         "name": str,
         "props": props_schema,
         "sku_id": NoneOr(prefixed_id("SKU")),
+        "produced_by_instance": NoneOr(All(str, non_empty_string, non_whitespace)),
+        "qty_remaining": NoneOr(All(Any(int, float), Range(min=0))),
+        "codes": codes_schema,
     }
 )
 
@@ -147,6 +161,9 @@ batch_patch_schema = Schema(
         "name": NoneOr(str),
         "props": NoneOr(props_schema),
         "sku_id": NoneOr(prefixed_id("SKU")),
+        "produced_by_instance": NoneOr(All(str, non_empty_string, non_whitespace)),
+        "qty_remaining": NoneOr(All(Any(int, float), Range(min=0))),
+        "codes": NoneOr(codes_schema),
     }
 )
 

@@ -178,6 +178,11 @@ export interface BatchLocations {
   state: Record<BinId, Record<BatchId, number>>;
 }
 
+export interface BatchCode {
+  code: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface SkuState {
   id: string;
   owned_codes: string[];
@@ -226,6 +231,9 @@ export interface BatchState {
   owned_codes?: string[];
   associated_codes?: string[];
   props?: Props;
+  produced_by_instance?: string | null;
+  qty_remaining?: number | null;
+  codes?: BatchCode[];
 }
 export class Batch extends RestEndpoint {
   kind: "batch" = "batch";
@@ -242,6 +250,9 @@ export class Batch extends RestEndpoint {
     owned_codes?: string[];
     associated_codes?: string[];
     props?: Props;
+    produced_by_instance?: string | null;
+    qty_remaining?: number | null;
+    codes?: BatchCode[] | null;
   }): Promise<Status | Problem> {
     return status_or_problem(this.operations.update.perform({ json: patch }));
   }

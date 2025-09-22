@@ -106,6 +106,24 @@ def batch_patch(id):
     if "associated_codes" in json.keys():
         db.batch.update_one({"_id": id},
                             {"$set": {"associated_codes": json['associated_codes']}})
+    if "produced_by_instance" in json.keys():
+        if json["produced_by_instance"] is None:
+            db.batch.update_one({"_id": id}, {"$unset": {"produced_by_instance": ""}})
+        else:
+            db.batch.update_one({"_id": id},
+                                {"$set": {"produced_by_instance": json['produced_by_instance']}})
+    if "qty_remaining" in json.keys():
+        if json["qty_remaining"] is None:
+            db.batch.update_one({"_id": id}, {"$unset": {"qty_remaining": ""}})
+        else:
+            db.batch.update_one({"_id": id},
+                                {"$set": {"qty_remaining": new_batch_doc['qty_remaining']}})
+    if "codes" in json.keys():
+        if json["codes"] is None:
+            db.batch.update_one({"_id": id}, {"$unset": {"codes": ""}})
+        else:
+            db.batch.update_one({"_id": id},
+                                {"$set": {"codes": new_batch_doc['codes']}})
 
     updated_batch = Batch.from_mongodb_doc(db.batch.find_one({"_id": id}))
     return BatchEndpoint.from_batch(updated_batch).redirect_response(False)
