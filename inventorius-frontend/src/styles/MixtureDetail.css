@@ -1,0 +1,15 @@
+.mixture-detail {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.mixture-detail .info-item-description {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.info-panel__hint {
+  color: #4b4b4b;
+  font-size: 0.9rem;
+}

@@ -28,6 +28,12 @@ import Receive from "./Receive";
 import MoveItem from "./MoveItem";
 import Release from "./Release";
 import Audit from "./Audit";
+import MixtureDetail from "./MixtureDetail";
+import StepTemplateList from "./StepTemplateList";
+import StepTemplateDetail from "./StepTemplateDetail";
+import StepInstanceList from "./StepInstanceList";
+import StepInstanceDetail from "./StepInstanceDetail";
+import TraceabilityReport from "./TraceabilityReport";
 
 /**
  * Main app component
@@ -89,6 +95,24 @@ function App() {
                 </Route>
                 <Route path="/batch/:id">
                   <Batch />
+                </Route>
+                <Route path="/mixture/:id">
+                  <MixtureDetail />
+                </Route>
+                <Route exact path="/step-templates">
+                  <StepTemplateList />
+                </Route>
+                <Route path="/step-template/:id">
+                  <StepTemplateDetail />
+                </Route>
+                <Route exact path="/step-instances">
+                  <StepInstanceList />
+                </Route>
+                <Route path="/step-instance/:id">
+                  <StepInstanceDetail />
+                </Route>
+                <Route path="/traceability">
+                  <TraceabilityReport />
                 </Route>
                 <Route path="/receive">
                   <Receive />

@@ -53,6 +53,20 @@ function Navbar({
       <NavLink className="navlink" to="/release">
         Release
       </NavLink>
+      <NavlinkDropdown text="Manufacturing">
+        <NavLink className="navlink" to="/step-templates">
+          Step Templates
+        </NavLink>
+        <NavLink className="navlink" to="/step-instances">
+          Step Instances
+        </NavLink>
+        <NavLink className="navlink" to="/traceability">
+          Traceability Report
+        </NavLink>
+        <NavLink className="navlink" to="/mixture/demo-mixture">
+          Mixture Detail
+        </NavLink>
+      </NavlinkDropdown>
       <NavLink className="navlink" to="/search">
         Search
       </NavLink>

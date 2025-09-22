@@ -1,0 +1,22 @@
+.step-instance-list,
+.step-instance-detail {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.step-instance-list .info-item-description,
+.step-instance-detail .info-item-description {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.step-instance-list__identifier {
+  font-family: "Roboto Mono", monospace;
+  font-size: 0.9rem;
+}
+
+.step-instance-detail__hint {
+  color: #4b4b4b;
+  font-size: 0.9rem;
+}
