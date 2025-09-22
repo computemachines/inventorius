@@ -37,21 +37,40 @@ def owned_code_get(id):
     return existing
 
 
+def _collection_for_prefix(prefix):
+    if prefix == "SKU":
+        return db.sku
+    if prefix == "BAT":
+        return db.batch
+    if prefix == "BIN":
+        return db.bin
+    raise Exception("unknown prefix", prefix)
+
+
+def _next_available_code(prefix, start_from):
+    collection = _collection_for_prefix(prefix)
+    # Build the list of all possible candidate numbers in the search range
+    candidate_numbers = [(start_from + offset) % 1_000_000 for offset in range(1_000_000)]
+    # Build the set of all candidate _id strings
+    candidate_ids = [f"{prefix}{num:06}" for num in candidate_numbers]
+    # Query for all existing _ids in the candidate set
+    existing_docs = collection.find({"_id": {"$in": candidate_ids}}, {"_id": 1})
+    existing_ids = set(doc["_id"] for doc in existing_docs)
+    # Find the first candidate_id not in existing_ids
+    for candidate_id in candidate_ids:
+        if candidate_id not in existing_ids:
+            return candidate_id
+    # Fallback: all codes are taken, return the first in the range
+    return candidate_ids[0]
+
+
 def admin_increment_code(prefix, code):
     code_number = int(re.sub('[^0-9]', '', code))
     next_unused = int(re.sub('[^0-9]', '', admin_get_next(prefix)))
 
     if code_number >= next_unused:
-        max_code = code_number
-        if prefix == "SKU":
-            db.admin.replace_one({"_id": "SKU"}, {"_id": "SKU",
-                                                  "next": f"SKU{max_code+1:06}"})
-        if prefix == "BAT":
-            db.admin.replace_one({"_id": "BAT"}, {"_id": "BAT",
-                                                  "next": f"BAT{max_code+1:06}"})
-        if prefix == "BIN":
-            db.admin.replace_one({"_id": "BIN"}, {"_id": "BIN",
-                                                  "next": f"BIN{max_code+1:06}"})
+        next_code = _next_available_code(prefix, code_number + 1)
+        db.admin.replace_one({"_id": prefix}, {"_id": prefix, "next": next_code}, upsert=True)
 
 
 def admin_get_next(prefix):
@@ -70,15 +89,15 @@ def admin_get_next(prefix):
         if prefix == "SKU":
             max_value = max_code_value(db.sku, "SKU")
             db.admin.insert_one({"_id": "SKU",
-                                 "next": f"SKU{max_value+1:06}"})
+                                 "next": _next_available_code("SKU", max_value + 1)})
         if prefix == "BAT":
             max_value = max_code_value(db.batch)
             db.admin.insert_one({"_id": "BAT",
-                                 "next": f"BAT{max_value+1:06}"})
+                                 "next": _next_available_code("BAT", max_value + 1)})
         if prefix == "BIN":
             max_value = max_code_value(db.bin, "BIN")
             db.admin.insert_one({"_id": "BIN",
-                                 "next": f"BIN{max_value+1:06}"})
+                                 "next": _next_available_code("BIN", max_value + 1)})
         next_code_doc = db.admin.find_one({"_id": prefix})
 
     if next_code_doc:

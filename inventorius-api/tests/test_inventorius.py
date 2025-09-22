@@ -810,7 +810,6 @@ else:
     )
 
 
-@pytest.mark.xfail(reason="Batch IDs can grow beyond 6 digits after rollover.", strict=True)
 def test_next_batch_rollover_preserves_length():
     with clientContext() as client:
         db = get_mongo_client().testing

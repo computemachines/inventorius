@@ -204,7 +204,7 @@ sku_patch_schema = Schema(
 
 item_move_schema = Schema(
     {
-        Required("id"): Any(prefixed_id("SKU"), prefixed_id("BAT")),
+        Required("id"): Any(prefixed_id("SKU"), prefixed_id("BAT"), prefixed_id("MIX")),
         Required("destination"): prefixed_id("BIN"),
         Required("quantity"): All(int, positive),
     }
@@ -212,7 +212,43 @@ item_move_schema = Schema(
 
 item_release_receive_schema = Schema(
     {
-        Required("id"): Any(prefixed_id("SKU"), prefixed_id("BAT")),
+        Required("id"): Any(prefixed_id("SKU"), prefixed_id("BAT"), prefixed_id("MIX")),
         Required("quantity"): int,  # can be positive or negative
+    }
+)
+
+mixture_component_schema = Schema(
+    {
+        Required("batch_id"): prefixed_id("BAT"),
+        Required("quantity"): All(Any(int, float), Range(min=0, min_included=False)),
+    }
+)
+
+mixture_create_schema = Schema(
+    {
+        Required("mix_id"): prefixed_id("MIX"),
+        Required("sku_id"): prefixed_id("SKU"),
+        Required("bin_id"): prefixed_id("BIN"),
+        Required("components"): All([mixture_component_schema], Length(min=1)),
+        Required("created_by"): All(str, non_empty_string, non_whitespace),
+        "audit": list,
+    }
+)
+
+mixture_draw_schema = Schema(
+    {
+        Required("quantity"): All(Any(int, float), Range(min=0, min_included=False)),
+        Required("created_by"): All(str, non_empty_string, non_whitespace),
+        "note": str,
+    }
+)
+
+mixture_split_schema = Schema(
+    {
+        Required("quantity"): All(Any(int, float), Range(min=0, min_included=False)),
+        Required("destination_bin"): prefixed_id("BIN"),
+        Required("new_mix_id"): prefixed_id("MIX"),
+        Required("created_by"): All(str, non_empty_string, non_whitespace),
+        "note": str,
     }
 )
