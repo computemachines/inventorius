@@ -17,6 +17,7 @@ from hypothesis.stateful import (
     rule,
 )
 from inventorius.data_models import Batch, Bin, Props, Sku, Subdoc
+from inventorius.db import get_mongo_client
 
 import tests.data_models_strategies as dst
 
@@ -775,3 +776,25 @@ else:
         deadline=timedelta(milliseconds=100),
         suppress_health_check=[HealthCheck.too_slow],
     )
+
+
+def test_next_batch_rollover_preserves_length():
+    with clientContext() as client:
+        db = get_mongo_client().testing
+        db.batch.insert_one(
+            {
+                "_id": "BAT999999",
+                "sku_id": None,
+                "name": "",
+                "owned_codes": [],
+                "associated_codes": [],
+                "props": {},
+            }
+        )
+
+        resp = client.get("/api/next/batch")
+        assert resp.status_code == 200
+        assert resp.is_json
+        next_batch = resp.json["state"]
+        assert next_batch.startswith("BAT")
+        assert len(next_batch) == 9
