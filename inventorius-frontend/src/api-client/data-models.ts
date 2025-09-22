@@ -267,6 +267,258 @@ export class Batch extends RestEndpoint {
   }
 }
 
+export interface MixtureComponent {
+  batch_id: string;
+  qty_initial: number;
+  qty_remaining: number;
+}
+
+export interface MixtureAuditEvent {
+  event: string;
+  created_by: string;
+  timestamp: string;
+  details?: Record<string, unknown>;
+  note?: string;
+}
+
+export interface MixtureState {
+  mix_id: string;
+  sku_id: string;
+  bin_id: string;
+  components: MixtureComponent[];
+  qty_total: number;
+  created_by?: string;
+  audit: MixtureAuditEvent[];
+}
+
+export interface MixtureComponentQuantity {
+  batch_id: string;
+  quantity: number;
+  [key: string]: unknown;
+}
+
+export interface MixtureCreateParams {
+  mix_id: string;
+  sku_id: string;
+  bin_id: string;
+  components: MixtureComponentQuantity[];
+  created_by: string;
+  audit?: MixtureAuditEvent[];
+}
+
+export interface MixtureDrawParams {
+  quantity: number;
+  created_by: string;
+  note?: string;
+}
+
+export interface MixtureSplitParams {
+  quantity: number;
+  destination_bin: string;
+  new_mix_id: string;
+  created_by: string;
+  note?: string;
+}
+
+export interface MixtureAppendAuditParams {
+  created_by: string;
+  event: string;
+  details?: Record<string, unknown>;
+  note?: string;
+}
+
+export class Mixture extends RestEndpoint {
+  kind: "mixture" = "mixture";
+  state: MixtureState;
+  operations: {
+    draw: CallableRestOperation;
+    split: CallableRestOperation;
+    "append-audit": CallableRestOperation;
+  };
+
+  private instantiate(json: unknown): Mixture {
+    return new Mixture({ ...(json as object), hostname: this.operations.draw.hostname });
+  }
+
+  async draw(params: MixtureDrawParams): Promise<Mixture | Problem> {
+    const resp = await this.operations.draw.perform({ json: params });
+    const json = await resp.json();
+    if (resp.ok) {
+      return this.instantiate(json);
+    }
+    return { ...json, kind: "problem" };
+  }
+
+  async split(params: MixtureSplitParams): Promise<Mixture | Problem> {
+    const resp = await this.operations.split.perform({ json: params });
+    const json = await resp.json();
+    if (resp.ok) {
+      return this.instantiate(json);
+    }
+    return { ...json, kind: "problem" };
+  }
+
+  async appendAudit(params: MixtureAppendAuditParams): Promise<Mixture | Problem> {
+    const resp = await this.operations["append-audit"].perform({ json: params });
+    const json = await resp.json();
+    if (resp.ok) {
+      return this.instantiate(json);
+    }
+    return { ...json, kind: "problem" };
+  }
+}
+
+export interface StepRequirement {
+  sku_id: string;
+  quantity?: number | null;
+  [key: string]: unknown;
+}
+
+export interface StepTemplateState {
+  template_id: string;
+  name?: string;
+  description?: string;
+  inputs: StepRequirement[];
+  outputs: StepRequirement[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface StepTemplateCreateParams {
+  template_id: string;
+  name: string;
+  description?: string;
+  inputs: StepRequirement[];
+  outputs: StepRequirement[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface StepTemplatePatchParams {
+  template_id: string;
+  name?: string | null;
+  description?: string | null;
+  inputs?: StepRequirement[] | null;
+  outputs?: StepRequirement[] | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+export class StepTemplate extends RestEndpoint {
+  kind: "step-template" = "step-template";
+  state: StepTemplateState;
+  operations: {
+    update: CallableRestOperation;
+    delete: CallableRestOperation;
+    create: CallableRestOperation;
+  };
+
+  update(patch: StepTemplatePatchParams): Promise<Status | Problem> {
+    return status_or_problem(this.operations.update.perform({ json: patch }));
+  }
+
+  delete(): Promise<Status | Problem> {
+    return status_or_problem(this.operations.delete.perform());
+  }
+
+  createStepInstance(params: StepInstanceCreateParams): Promise<Status | Problem> {
+    return status_or_problem(this.operations.create.perform({ json: params }));
+  }
+}
+
+export interface StepInstanceConsumedComponent {
+  batch_id: string;
+  qty_initial: number;
+  qty_remaining: number;
+}
+
+export interface StepInstanceConsumedResource {
+  resource_id: string;
+  resource_type: "batch" | "mixture";
+  bin_id: string;
+  quantity: number;
+  remaining_qty?: number;
+  components?: StepInstanceConsumedComponent[];
+  [key: string]: unknown;
+}
+
+export interface StepInstanceProducedBatch {
+  batch_id: string;
+  sku_id: string;
+  quantity: number;
+  name?: string;
+  owned_codes?: string[];
+  associated_codes?: string[];
+  props?: Props;
+  bin_id?: string;
+  codes?: BatchCode[];
+  notes?: string;
+  [key: string]: unknown;
+}
+
+export interface StepInstanceState {
+  instance_id: string;
+  template_id: string;
+  operator: string | Record<string, unknown>;
+  notes?: string | null;
+  metadata?: Record<string, unknown>;
+  consumed: StepInstanceConsumedResource[];
+  produced: StepInstanceProducedBatch[];
+}
+
+export interface StepInstanceCreateParams {
+  instance_id: string;
+  template_id: string;
+  operator: string | Record<string, unknown>;
+  notes?: string | null;
+  metadata?: Record<string, unknown>;
+  consumed: StepInstanceConsumedResource[];
+  produced: StepInstanceProducedBatch[];
+}
+
+export interface StepInstancePatchParams {
+  instance_id: string;
+  operator?: string | Record<string, unknown> | null;
+  notes?: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+export class StepInstance extends RestEndpoint {
+  kind: "step-instance" = "step-instance";
+  state: StepInstanceState;
+  operations: {
+    update: CallableRestOperation;
+    delete: CallableRestOperation;
+  };
+
+  update(patch: StepInstancePatchParams): Promise<Status | Problem> {
+    return status_or_problem(this.operations.update.perform({ json: patch }));
+  }
+
+  delete(): Promise<Status | Problem> {
+    return status_or_problem(this.operations.delete.perform());
+  }
+}
+
+export interface TraceabilityQueryPayload {
+  batch_ids?: string[];
+  step_instance_ids?: string[];
+}
+
+export interface TraceabilityQuerySummary {
+  batch_ids: string[];
+  step_instance_ids: string[];
+}
+
+export interface TraceabilityInputBounds {
+  batch_id: string;
+  lower_bound: number;
+  upper_bound: number;
+  annotations: string[];
+}
+
+export interface TraceabilityReport {
+  query: TraceabilityQuerySummary;
+  inputs: TraceabilityInputBounds[];
+}
+
 export class NextBin extends RestEndpoint {
   kind: "next-bin" = "next-bin";
   state: string;
