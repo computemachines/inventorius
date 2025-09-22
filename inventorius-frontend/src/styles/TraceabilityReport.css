@@ -1,0 +1,44 @@
+.traceability-report {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.traceability-report__form {
+  display: flex;
+  gap: 1rem;
+}
+
+.traceability-report__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.traceability-report__input {
+  padding: 0.5rem;
+  border-radius: 0.3rem;
+  border: 1px solid #c1c1c1;
+}
+
+.traceability-report__submit {
+  align-self: flex-start;
+  margin-top: 1rem;
+  background-color: #26532b;
+  color: #fff;
+  border: none;
+  border-radius: 0.3rem;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+.traceability-report__submit:hover,
+.traceability-report__submit:focus {
+  background-color: #1c3d20;
+}
+
+.traceability-report__preview {
+  background-color: #fff;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  box-shadow: 0 10px 20px -15px rgba(0, 0, 0, 0.3);
+}
