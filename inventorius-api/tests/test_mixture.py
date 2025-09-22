@@ -162,3 +162,27 @@ def test_mixture_split_creates_new_mixture_with_proportions():
         dest_bin = Bin.from_mongodb_doc(db.bin.find_one({"_id": "BIN200"}))
         assert source_bin.contents[source_mix] == pytest.approx(6)
         assert dest_bin.contents["MIX301"] == pytest.approx(6)
+
+
+def test_mixture_hypermedia_operations_present():
+    with clientContext() as client:
+        mix_id = "MIX400"
+        components = [("BAT400", 5), ("BAT401", 5)]
+        created = _bootstrap_mixture(client, mix_id, components)
+
+        assert created["Id"].endswith(f"/api/mixture/{mix_id}")
+        operations = {op["rel"]: op for op in created["operations"]}
+        assert set(operations.keys()) == {"draw", "split", "append-audit"}
+        expected_suffix = {
+            "draw": "/draw",
+            "split": "/split",
+            "append-audit": "/audit",
+        }
+        for rel, op in operations.items():
+            assert op["method"] == "POST"
+            assert op["href"].endswith(f"/api/mixture/{mix_id}{expected_suffix[rel]}")
+
+        fetched = client.get(f"/api/mixture/{mix_id}")
+        assert fetched.status_code == 200
+        fetched_operations = {op["rel"] for op in fetched.json["operations"]}
+        assert fetched_operations == {"draw", "split", "append-audit"}

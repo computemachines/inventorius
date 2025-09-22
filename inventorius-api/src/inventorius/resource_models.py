@@ -4,7 +4,14 @@ from flask_login import current_user
 from flask_login.utils import encode_cookie
 
 from inventorius.db import db
-from inventorius.data_models import DataModel, DataModelJSONEncoder, UserData, Batch, Bin
+from inventorius.data_models import (
+    DataModel,
+    DataModelJSONEncoder,
+    UserData,
+    Batch,
+    Bin,
+    Mixture,
+)
 import inventorius.resource_operations as operations
 
 # operation = {
@@ -169,6 +176,47 @@ class BatchEndpoint(HypermediaEndpoint):
 
     def deleted_success_response(self):
         return self.status_response("batch deleted")
+
+
+class MixtureEndpoint(HypermediaEndpoint):
+    @classmethod
+    def from_mixture(cls, mixture: Mixture):
+        endpoint = MixtureEndpoint(
+            resource_uri=url_for("mixture.mixture_get", mix_id=mixture.mix_id),
+            state=mixture,
+            operations=[
+                operations.mixture_draw(mixture.mix_id),
+                operations.mixture_split(mixture.mix_id),
+                operations.mixture_append_audit(mixture.mix_id),
+            ],
+        )
+        endpoint.mixture = mixture
+        return endpoint
+
+    @classmethod
+    def from_id(cls, mix_id: str, retrieve=False):
+        if retrieve:
+            mixture_doc = Mixture.from_mongodb_doc(db.mixture.find_one({"_id": mix_id}))
+            if not mixture_doc:
+                return None
+            return cls.from_mixture(mixture_doc)
+
+        endpoint = MixtureEndpoint(
+            resource_uri=url_for("mixture.mixture_get", mix_id=mix_id),
+            operations=[
+                operations.mixture_draw(mix_id),
+                operations.mixture_split(mix_id),
+                operations.mixture_append_audit(mix_id),
+            ],
+        )
+        endpoint.mixture_id = mix_id
+        return endpoint
+
+    def created_success_response(self):
+        return self.get_response(status_code=201)
+
+    def updated_success_response(self):
+        return self.get_response(status_code=200)
 
 
 class BatchBinsEndpoint(HypermediaEndpoint):
