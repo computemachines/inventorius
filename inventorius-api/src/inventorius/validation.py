@@ -5,7 +5,7 @@ from os import stat
 
 from flask import Response
 from flask.helpers import url_for
-from voluptuous import ALLOW_EXTRA, All, Length, Range, Required, Schema
+from voluptuous import ALLOW_EXTRA, All, Length, Optional, Range, Required, Schema
 from voluptuous.error import Invalid, MultipleInvalid
 from voluptuous.validators import Any
 
@@ -341,4 +341,23 @@ step_instance_patch_schema = Schema(
         "notes": NoneOr(str),
         "metadata": NoneOr(dict),
     }
+)
+
+
+def _traceability_non_empty(payload):
+    batch_ids = payload.get("batch_ids", [])
+    step_ids = payload.get("step_instance_ids", [])
+    if not batch_ids and not step_ids:
+        raise Invalid("must include at least one batch_id or step_instance_id")
+    return payload
+
+
+traceability_request_schema = Schema(
+    All(
+        {
+            Optional("batch_ids", default=[]): [prefixed_id("BAT")],
+            Optional("step_instance_ids", default=[]): [prefixed_id("INS")],
+        },
+        _traceability_non_empty,
+    )
 )
