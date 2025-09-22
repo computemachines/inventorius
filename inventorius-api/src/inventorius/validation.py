@@ -1,7 +1,5 @@
 import re
 from json import dumps
-import re
-
 from locale import currency
 from os import stat
 
