@@ -268,7 +268,7 @@ def test_traceability_multi_step_flow():
         first_instance_payload = {
             "instance_id": "INS300",
             "template_id": template_first,
-            "operator": "operator",
+            "operator": {"id": "operator"},
             "consumed": [
                 {"resource_id": first_mix, "quantity": 10, "bin_id": first_mix_bin},
             ],
