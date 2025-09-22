@@ -196,9 +196,10 @@ class MixtureEndpoint(HypermediaEndpoint):
     @classmethod
     def from_id(cls, mix_id: str, retrieve=False):
         if retrieve:
-            mixture_doc = Mixture.from_mongodb_doc(db.mixture.find_one({"_id": mix_id}))
-            if not mixture_doc:
+            doc = db.mixture.find_one({"_id": mix_id})
+            if doc is None:
                 return None
+            mixture_doc = Mixture.from_mongodb_doc(doc)
             return cls.from_mixture(mixture_doc)
 
         endpoint = MixtureEndpoint(
