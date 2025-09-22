@@ -1,3 +1,5 @@
+from bson.decimal128 import Decimal128
+
 from inventorius.data_models import Bin, Sku, Batch, Props, DataModelJSONEncoder as Encoder
 
 import pytest
@@ -12,6 +14,9 @@ def test_get_attr():
     batch = Batch(id="BAT1")
     assert hasattr(batch, "id")
     assert batch.sku_id == None
+    assert batch.produced_by_instance is None
+    assert batch.qty_remaining is None
+    assert batch.codes == []
 
 
 def test_bin_default_contents():
@@ -67,6 +72,39 @@ def test_batch_props():
 def test_batch_no_props():
     batch = Batch(id="BAT0123456")
     print(batch.props)
+
+
+def test_batch_qty_remaining_round_trip():
+    batch = Batch(id="BAT000001", qty_remaining=5.5)
+    doc = batch.to_mongodb_doc()
+    assert isinstance(doc["qty_remaining"], Decimal128)
+
+    restored = Batch.from_mongodb_doc({"_id": batch.id, "qty_remaining": doc["qty_remaining"]})
+    assert restored.qty_remaining == pytest.approx(5.5)
+
+
+def test_batch_codes_normalization():
+    codes = [
+        {"code": "LOT1"},
+        {"code": "LOT2", "metadata": {"kind": "supplier"}},
+    ]
+    batch = Batch(id="BAT000002", codes=codes)
+
+    assert batch.codes[0]["metadata"] == {}
+    assert batch.codes[1]["metadata"] == {"kind": "supplier"}
+
+    doc = batch.to_mongodb_doc()
+    assert doc["codes"][0]["metadata"] == {}
+
+    restored = Batch.from_mongodb_doc({"_id": batch.id, "codes": doc["codes"]})
+    assert restored.codes == batch.codes
+
+
+def test_batch_produced_by_instance_round_trip():
+    batch = Batch(id="BAT000003", produced_by_instance="INS000001")
+    doc = batch.to_mongodb_doc()
+    restored = Batch.from_mongodb_doc(doc)
+    assert restored.produced_by_instance == "INS000001"
 
 # def test_bin_extended():
 #     pass

@@ -15,6 +15,7 @@ import {
   Batch,
   ApiStatus,
   Status,
+  BatchCode,
 } from "./data-models";
 
 export interface FrontloadContext {
@@ -175,6 +176,9 @@ export class ApiClient {
     owned_codes?: string[];
     associated_codes?: string[];
     props?: unknown;
+    produced_by_instance?: string | null;
+    qty_remaining?: number | null;
+    codes?: BatchCode[];
   }): Promise<Status | Problem> {
     const resp = await fetch(`${this.hostname}/api/batches`, {
       method: "POST",

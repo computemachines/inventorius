@@ -277,6 +277,49 @@ def currency_to_bson(units):
     return {"unit": "USD", "value": Decimal128(str(units['value']))}
 
 
+def quantity_to_bson(quantity):
+    if quantity is None:
+        return None
+    if isinstance(quantity, Decimal128):
+        return quantity
+    return Decimal128(str(quantity))
+
+
+def quantity_from_bson(quantity):
+    if quantity is None:
+        return None
+    if isinstance(quantity, Decimal128):
+        return float(quantity.to_decimal())
+    return quantity
+
+
+def normalize_code_entry(entry):
+    if entry is None:
+        return None
+    if isinstance(entry, dict):
+        normalized = {"code": entry["code"]}
+        metadata = entry.get("metadata")
+        if metadata is None:
+            metadata = {}
+        elif isinstance(metadata, dict):
+            metadata = metadata.copy()
+        normalized["metadata"] = metadata
+        return normalized
+    raise TypeError("Batch codes must be dictionaries with 'code' and optional 'metadata'")
+
+
+def codes_to_bson(codes):
+    if codes is None:
+        return None
+    return [normalize_code_entry(entry) for entry in codes]
+
+
+def codes_from_bson(codes):
+    if codes is None:
+        return None
+    return [normalize_code_entry(entry) for entry in codes]
+
+
 class Props(DataModel, HasAdditionalFields):
     cost_per_case = DataField(
         "cost_per_case", value_to_bson=currency_to_bson, bson_to_value=currency_from_bson)
@@ -321,6 +364,11 @@ class Batch(DataModel):
     associated_codes = DataField("associated_codes", default=[])
     # props = DataField("props")
     props = Subdoc("props", Props)
+    produced_by_instance = DataField("produced_by_instance")
+    qty_remaining = DataField("qty_remaining", value_to_bson=quantity_to_bson,
+                              bson_to_value=quantity_from_bson)
+    codes = DataField("codes", default=[], value_to_bson=codes_to_bson,
+                      bson_to_value=codes_from_bson)
     # parent_id = DataField("parent_id")
     # original_cost = DataField()
     # original_cost_per_unit = DataField()
@@ -331,3 +379,10 @@ class Batch(DataModel):
     # assembly_date = DataField()
     # expiration_date = DataField()
     # inherited_props = DataField()
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if self.codes is None:
+            self.codes = []
+        else:
+            self.codes = [normalize_code_entry(entry) for entry in self.codes]

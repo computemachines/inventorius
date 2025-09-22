@@ -36,6 +36,34 @@ json = recursive(simpleTypes,
 propertyDicts = dictionaries(fieldNames, json)
 
 
+def _prepare_props(draw, props=None):
+    if props is None:
+        props = draw(propertyDicts)
+    else:
+        props = props.copy()
+
+    for key in ("count_per_case", "original_count_per_case"):
+        if key in props:
+            value = props[key]
+            if value is None:
+                continue
+            if not isinstance(value, int):
+                props[key] = draw(integers(min_value=0, max_value=10**6))
+
+    for key in ("cost_per_case", "original_cost_per_case"):
+        if key in props:
+            value = props[key]
+            if value is None:
+                continue
+            if not (isinstance(value, dict) and "unit" in value and "value" in value):
+                props[key] = {
+                    "unit": "USD",
+                    "value": draw(floats(min_value=0, max_value=10**6, allow_nan=False, allow_infinity=False)),
+                }
+
+    return props
+
+
 @composite
 def props_(draw):
     props = Props(draw(propertyDicts))
@@ -49,9 +77,19 @@ def label_(draw, prefix, length=9):
 @composite
 def bins_(draw, id=None, props=None, contents=None):
     id = id or draw(label_("BIN"))  # f"BIN{draw(integers(0, 6)):06d}"
-    props = props or draw(propertyDicts)
+    props = _prepare_props(draw, props)
     contents = contents or {}
     return Bin(id=id, props=props, contents=contents)
+
+
+@composite
+def code_entries(draw):
+    code = draw(text(ascii_letters + digits, min_size=1))
+    metadata = draw(one_of(none(), propertyDicts))
+    entry = {"code": code}
+    if metadata is not None:
+        entry["metadata"] = metadata
+    return entry
 
 
 @composite
@@ -60,20 +98,30 @@ def skus_(draw, id=None, owned_codes=None, name=None, associated_codes=None, pro
     owned_codes = owned_codes or draw(lists(text("abc", min_size=1)))
     associated_codes = associated_codes or draw(lists(text("abc", min_size=1)))
     name = name or draw(text("ABC"))
-    props = props or draw(propertyDicts)
+    props = _prepare_props(draw, props)
     return Sku(id=id, owned_codes=owned_codes, name=name, associated_codes=associated_codes, props=props)
 
 
 @composite
-def batches_(draw: DrawFn, id=None, sku_id=0, name=None, owned_codes=None, associated_codes=None, props=None):
+def batches_(draw: DrawFn, id=None, sku_id=0, name=None, owned_codes=None, associated_codes=None, props=None,
+             produced_by_instance=None, qty_remaining=None, codes=None):
     id = id or draw(label_("BAT"))
     if sku_id == 0:
         sku_id = draw(none(), label_("SKU"))
     name = name or draw(text("ABC"))
     owned_codes = owned_codes or draw(lists(text("abc", min_size=1)))
     associated_codes = associated_codes or draw(lists(text("abc", min_size=1)))
-    props = props or draw(propertyDicts)
-    return Batch(id=id, sku_id=sku_id, name=name, owned_codes=owned_codes, associated_codes=associated_codes, props=props)
+    props = _prepare_props(draw, props)
+    produced_by_instance = produced_by_instance if produced_by_instance is not None else draw(
+        one_of(none(), label_("INS")))
+    qty_remaining = qty_remaining if qty_remaining is not None else draw(
+        one_of(none(), integers(min_value=0, max_value=10**6),
+               floats(min_value=0, max_value=10**6, allow_nan=False, allow_infinity=False)))
+    codes = codes if codes is not None else draw(lists(code_entries(), max_size=4))
+    return Batch(id=id, sku_id=sku_id, name=name, owned_codes=owned_codes,
+                 associated_codes=associated_codes, props=props,
+                 produced_by_instance=produced_by_instance,
+                 qty_remaining=qty_remaining, codes=codes)
 
 
 @composite

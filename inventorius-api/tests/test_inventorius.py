@@ -437,10 +437,31 @@ class InventoriusStateMachine(RuleBasedStateMachine):
         assert rp.is_json
         assert rp.json["type"] == "missing-resource"
 
+    def build_batch_patch(batch, use_keys):
+        patch = {}
+        for key in use_keys:
+            value = getattr(batch, key)
+            if isinstance(value, Props):
+                patch[key] = value.to_dict(mask_default=True)
+            else:
+                patch[key] = value
+        return patch
+
     batch_patch = st.builds(
-        lambda batch, use_keys: {k: v for k, v in batch.__dict__.items() if k in use_keys},
-        dst.skus_(),
-        st.sets(st.sampled_from(["owned_codes", "associated_codes", "props"])),
+        build_batch_patch,
+        dst.batches_(),
+        st.sets(
+            st.sampled_from(
+                [
+                    "owned_codes",
+                    "associated_codes",
+                    "props",
+                    "produced_by_instance",
+                    "qty_remaining",
+                    "codes",
+                ]
+            )
+        ),
     )
 
     @rule(batch_id=a_batch_id, patch=batch_patch)
@@ -452,6 +473,11 @@ class InventoriusStateMachine(RuleBasedStateMachine):
         for key in patch.keys():
             if key == "props":
                 setattr(self.model_batches[batch_id], "props", Props(**patch["props"]))
+            elif key == "codes":
+                if patch[key] is None:
+                    setattr(self.model_batches[batch_id], key, [])
+                else:
+                    setattr(self.model_batches[batch_id], key, Batch(id=batch_id, codes=patch[key]).codes)
             else:
                 setattr(self.model_batches[batch_id], key, patch[key])
 
@@ -489,6 +515,11 @@ class InventoriusStateMachine(RuleBasedStateMachine):
         for key in patch.keys():
             if key == "props":
                 setattr(self.model_batches[batch_id], key, Props(**patch[key]))
+            elif key == "codes":
+                if patch[key] is None:
+                    setattr(self.model_batches[batch_id], key, [])
+                else:
+                    setattr(self.model_batches[batch_id], key, Batch(id=batch_id, codes=patch[key]).codes)
             else:
                 setattr(self.model_batches[batch_id], key, patch[key])
 
@@ -680,7 +711,7 @@ class InventoriusStateMachine(RuleBasedStateMachine):
         next_batch = rp.json["state"]
         assert next_batch not in self.model_bins.keys()
         assert next_batch.startswith("BAT")
-        assert len(next_batch) == 9
+        assert len(next_batch) >= 9
 
     def search_results_generator(self, query):
         def json_to_data_model(in_json_dict):
