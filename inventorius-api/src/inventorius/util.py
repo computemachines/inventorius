@@ -49,12 +49,19 @@ def _collection_for_prefix(prefix):
 
 def _next_available_code(prefix, start_from):
     collection = _collection_for_prefix(prefix)
-    for offset in range(1_000_000):
-        candidate = (start_from + offset) % 1_000_000
-        candidate_id = f"{prefix}{candidate:06}"
-        if not collection.find_one({"_id": candidate_id}):
+    # Build the list of all possible candidate numbers in the search range
+    candidate_numbers = [(start_from + offset) % 1_000_000 for offset in range(1_000_000)]
+    # Build the set of all candidate _id strings
+    candidate_ids = [f"{prefix}{num:06}" for num in candidate_numbers]
+    # Query for all existing _ids in the candidate set
+    existing_docs = collection.find({"_id": {"$in": candidate_ids}}, {"_id": 1})
+    existing_ids = set(doc["_id"] for doc in existing_docs)
+    # Find the first candidate_id not in existing_ids
+    for candidate_id in candidate_ids:
+        if candidate_id not in existing_ids:
             return candidate_id
-    return f"{prefix}{start_from % 1_000_000:06}"
+    # Fallback: all codes are taken, return the first in the range
+    return candidate_ids[0]
 
 
 def admin_increment_code(prefix, code):
