@@ -68,3 +68,20 @@ def sku_bins(id):
 
 def mixture_create():
     return operation("create", POST, url_for("mixture.mixtures_post"), "Mixture patch")
+
+
+def mixture_draw(mix_id):
+    return operation("draw", POST, url_for("mixture.mixture_draw", mix_id=mix_id), "Mixture draw")
+
+
+def mixture_split(mix_id):
+    return operation("split", POST, url_for("mixture.mixture_split", mix_id=mix_id), "Mixture split")
+
+
+def mixture_append_audit(mix_id):
+    return operation(
+        "append-audit",
+        POST,
+        url_for("mixture.mixture_append_audit", mix_id=mix_id),
+        "Mixture audit entry",
+    )

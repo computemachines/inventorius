@@ -1,14 +1,12 @@
-import json
 from datetime import datetime, timezone
 from decimal import Decimal, getcontext
 
-from flask import Blueprint, Response, request
+from flask import Blueprint, request
 from voluptuous.error import Invalid, MultipleInvalid
 
 from inventorius.data_models import (
     Batch,
     Bin,
-    DataModelJSONEncoder as Encoder,
     Mixture,
     mixture_components_to_bson,
     quantity_to_bson,
@@ -21,6 +19,7 @@ from inventorius.validation import (
 )
 from inventorius.util import no_cache
 import inventorius.util_error_responses as problem
+from inventorius.resource_models import MixtureEndpoint
 
 getcontext().prec = 28
 
@@ -112,14 +111,6 @@ def _proportional_allocation(components, quantity):
         extracted_components[-1]["qty_remaining"] = float(last_extracted)
 
     return remaining_components, extracted_components
-
-
-def _mixture_response(payload, status):
-    resp = Response()
-    resp.status_code = status
-    resp.mimetype = "application/json"
-    resp.data = json.dumps(payload, cls=Encoder)
-    return resp
 
 
 def _normalize_components(components):
@@ -264,11 +255,7 @@ def mixtures_post():
         {"$inc": {f"contents.{payload['mix_id']}": float(total_requested)}},
     )
 
-    response_payload = {
-        "state": mixture_state.to_dict(),
-        "operations": [],
-    }
-    return _mixture_response(response_payload, 201)
+    return MixtureEndpoint.from_mixture(mixture_state).get_response(status_code=201)
 
 
 @mixture.route("/api/mixture/<mix_id>", methods=["GET"])
@@ -278,7 +265,7 @@ def mixture_get(mix_id):
     if existing is None:
         return problem.missing_mixture_response(mix_id)
 
-    return _mixture_response({"state": existing.to_dict(), "operations": []}, 200)
+    return MixtureEndpoint.from_mixture(existing).get_response()
 
 
 def apply_draw(mixture_state, quantity, created_by, note=None):
@@ -345,7 +332,7 @@ def mixture_draw(mix_id):
     )
 
     refreshed = get_mixture(mix_id)
-    return _mixture_response({"state": refreshed.to_dict(), "operations": []}, 200)
+    return MixtureEndpoint.from_mixture(refreshed).get_response()
 
 
 @mixture.route("/api/mixture/<mix_id>/split", methods=["POST"])
@@ -445,7 +432,7 @@ def mixture_split(mix_id):
     )
 
     refreshed_new = get_mixture(new_mixture.mix_id)
-    return _mixture_response({"state": refreshed_new.to_dict(), "operations": []}, 201)
+    return MixtureEndpoint.from_mixture(refreshed_new).get_response(status_code=201)
 
 
 @mixture.route("/api/mixture/<mix_id>/audit", methods=["POST"])
@@ -472,4 +459,4 @@ def mixture_append_audit(mix_id):
     db.mixture.update_one({"_id": mix_id}, {"$push": {"audit": audit_event}})
 
     refreshed = get_mixture(mix_id)
-    return _mixture_response({"state": refreshed.to_dict(), "operations": []}, 200)
+    return MixtureEndpoint.from_mixture(refreshed).get_response()
