@@ -16,6 +16,19 @@ import {
   ApiStatus,
   Status,
   BatchCode,
+  Mixture,
+  MixtureCreateParams,
+  MixtureDrawParams,
+  MixtureSplitParams,
+  MixtureAppendAuditParams,
+  StepTemplate,
+  StepTemplateCreateParams,
+  StepTemplatePatchParams,
+  StepInstance,
+  StepInstanceCreateParams,
+  StepInstancePatchParams,
+  TraceabilityReport,
+  TraceabilityQueryPayload,
 } from "./data-models";
 
 export interface FrontloadContext {
@@ -34,7 +47,9 @@ export class ApiClient {
   }
 
 
-  hydrate<T extends Sku | Batch>(server_rendered: T): T {
+  hydrate<
+    T extends Sku | Batch | Mixture | StepTemplate | StepInstance
+  >(server_rendered: T): T {
     if (Object.getPrototypeOf(server_rendered) !== Object.prototype)
       return server_rendered;
     switch (server_rendered.kind) {
@@ -44,15 +59,26 @@ export class ApiClient {
     case "batch":
       Object.setPrototypeOf(server_rendered, Batch.prototype);
       break;
+    case "mixture":
+      Object.setPrototypeOf(server_rendered, Mixture.prototype);
+      break;
+    case "step-template":
+      Object.setPrototypeOf(server_rendered, StepTemplate.prototype);
+      break;
+    case "step-instance":
+      Object.setPrototypeOf(server_rendered, StepInstance.prototype);
+      break;
     default:
         let _exhaustive_check: never; // eslint-disable-line
     }
-    for (const key in server_rendered.operations) {
-      Object.setPrototypeOf(
-        server_rendered.operations[key],
-        CallableRestOperation.prototype
-      );
-      server_rendered.operations[key].hostname = this.hostname;
+    if (server_rendered.operations) {
+      for (const key in server_rendered.operations) {
+        Object.setPrototypeOf(
+          server_rendered.operations[key],
+          CallableRestOperation.prototype
+        );
+        server_rendered.operations[key].hostname = this.hostname;
+      }
     }
     return server_rendered;
   }
@@ -194,6 +220,272 @@ export class ApiClient {
       return { ...json, kind: "problem" };
     }
   }
+
+
+
+  async createMixture(params: MixtureCreateParams): Promise<Mixture | Problem> {
+    const resp = await fetch(`${this.hostname}/api/mixtures`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(params),
+    });
+    const json = await resp.json();
+    if (resp.ok) {
+      return new Mixture({ ...json, hostname: this.hostname });
+    }
+    return { ...json, kind: "problem" };
+  }
+
+
+  async getMixture(mix_id: string): Promise<Mixture | Problem> {
+    const resp = await fetch(`${this.hostname}/api/mixture/${mix_id}`);
+    const json = await resp.json();
+    if (resp.ok) {
+      return new Mixture({ ...json, hostname: this.hostname });
+    }
+    return { ...json, kind: "problem" };
+  }
+
+
+  async drawMixture(
+    mix_id: string,
+    params: MixtureDrawParams
+  ): Promise<Mixture | Problem> {
+    const resp = await fetch(`${this.hostname}/api/mixture/${mix_id}/draw`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(params),
+    });
+    const json = await resp.json();
+    if (resp.ok) {
+      return new Mixture({ ...json, hostname: this.hostname });
+    }
+    return { ...json, kind: "problem" };
+  }
+
+
+  async splitMixture(
+    mix_id: string,
+    params: MixtureSplitParams
+  ): Promise<Mixture | Problem> {
+    const resp = await fetch(`${this.hostname}/api/mixture/${mix_id}/split`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(params),
+    });
+    const json = await resp.json();
+    if (resp.ok) {
+      return new Mixture({ ...json, hostname: this.hostname });
+    }
+    return { ...json, kind: "problem" };
+  }
+
+
+  async appendMixtureAudit(
+    mix_id: string,
+    params: MixtureAppendAuditParams
+  ): Promise<Mixture | Problem> {
+    const resp = await fetch(`${this.hostname}/api/mixture/${mix_id}/audit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(params),
+    });
+    const json = await resp.json();
+    if (resp.ok) {
+      return new Mixture({ ...json, hostname: this.hostname });
+    }
+    return { ...json, kind: "problem" };
+  }
+
+
+  async createStepTemplate(
+    params: StepTemplateCreateParams
+  ): Promise<Status | Problem> {
+    const resp = await fetch(`${this.hostname}/api/step-templates`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(params),
+    });
+    const json = await resp.json();
+    if (resp.ok) return { ...json, kind: "status" };
+    else return { ...json, kind: "problem" };
+  }
+
+
+  async getStepTemplate(template_id: string): Promise<StepTemplate | Problem> {
+    const resp = await fetch(`${this.hostname}/api/step-template/${template_id}`);
+    const json = await resp.json();
+    if (resp.ok) {
+      return new StepTemplate({ ...json, hostname: this.hostname });
+    }
+    return { ...json, kind: "problem" };
+  }
+
+
+  async updateStepTemplate(
+    template_id: string,
+    patch: StepTemplatePatchParams
+  ): Promise<Status | Problem> {
+    const resp = await fetch(`${this.hostname}/api/step-template/${template_id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(patch),
+    });
+    const json = await resp.json();
+    if (resp.ok) return { ...json, kind: "status" };
+    else return { ...json, kind: "problem" };
+  }
+
+
+  async deleteStepTemplate(template_id: string): Promise<Status | Problem> {
+    const resp = await fetch(`${this.hostname}/api/step-template/${template_id}`, {
+      method: "DELETE",
+    });
+    const json = await resp.json();
+    if (resp.ok) return { ...json, kind: "status" };
+    else return { ...json, kind: "problem" };
+  }
+
+
+  async listStepTemplates(): Promise<StepTemplate[] | Problem> {
+    const resp = await fetch(`${this.hostname}/api/step-templates`);
+    const json = await resp.json();
+    if (!resp.ok) return { ...json, kind: "problem" };
+    const entries = Array.isArray(json)
+      ? json
+      : Array.isArray((json as any).templates)
+        ? (json as any).templates
+        : Array.isArray((json as any).items)
+          ? (json as any).items
+          : Array.isArray((json as any).results)
+            ? (json as any).results
+            : [];
+    if (!Array.isArray(entries)) {
+      return { ...json, kind: "problem" };
+    }
+    return entries.map((entry) =>
+      new StepTemplate({
+        ...entry,
+        operations: Array.isArray((entry as any)?.operations)
+          ? (entry as any).operations
+          : [],
+        hostname: this.hostname,
+      })
+    );
+  }
+
+
+  async createStepInstance(
+    params: StepInstanceCreateParams
+  ): Promise<Status | Problem> {
+    const resp = await fetch(`${this.hostname}/api/step-instances`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(params),
+    });
+    const json = await resp.json();
+    if (resp.ok) return { ...json, kind: "status" };
+    else return { ...json, kind: "problem" };
+  }
+
+
+  async getStepInstance(instance_id: string): Promise<StepInstance | Problem> {
+    const resp = await fetch(`${this.hostname}/api/step-instance/${instance_id}`);
+    const json = await resp.json();
+    if (resp.ok) {
+      return new StepInstance({ ...json, hostname: this.hostname });
+    }
+    return { ...json, kind: "problem" };
+  }
+
+
+  async updateStepInstance(
+    instance_id: string,
+    patch: StepInstancePatchParams
+  ): Promise<Status | Problem> {
+    const resp = await fetch(`${this.hostname}/api/step-instance/${instance_id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(patch),
+    });
+    const json = await resp.json();
+    if (resp.ok) return { ...json, kind: "status" };
+    else return { ...json, kind: "problem" };
+  }
+
+
+  async deleteStepInstance(instance_id: string): Promise<Status | Problem> {
+    const resp = await fetch(`${this.hostname}/api/step-instance/${instance_id}`, {
+      method: "DELETE",
+    });
+    const json = await resp.json();
+    if (resp.ok) return { ...json, kind: "status" };
+    else return { ...json, kind: "problem" };
+  }
+
+
+  async listStepInstances(): Promise<StepInstance[] | Problem> {
+    const resp = await fetch(`${this.hostname}/api/step-instances`);
+    const json = await resp.json();
+    if (!resp.ok) return { ...json, kind: "problem" };
+    const entries = Array.isArray(json)
+      ? json
+      : Array.isArray((json as any).instances)
+        ? (json as any).instances
+        : Array.isArray((json as any).items)
+          ? (json as any).items
+          : Array.isArray((json as any).results)
+            ? (json as any).results
+            : [];
+    if (!Array.isArray(entries)) {
+      return { ...json, kind: "problem" };
+    }
+    return entries.map((entry) =>
+      new StepInstance({
+        ...entry,
+        operations: Array.isArray((entry as any)?.operations)
+          ? (entry as any).operations
+          : [],
+        hostname: this.hostname,
+      })
+    );
+  }
+
+
+  async postTraceability(
+    payload: TraceabilityQueryPayload
+  ): Promise<TraceabilityReport | Problem> {
+    const resp = await fetch(`${this.hostname}/api/traceability`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    const json = await resp.json();
+    if (resp.ok) {
+      return json as TraceabilityReport;
+    }
+    return { ...json, kind: "problem" };
+  }
+
+
 
 
   async receive({
