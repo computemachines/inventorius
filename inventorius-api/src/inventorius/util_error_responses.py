@@ -111,6 +111,13 @@ def missing_sku_response(id):
     )
 
 
+def missing_mixture_response(id):
+    return missing_resource_response(
+        url_for("mixture.mixture_get", mix_id=id),
+        operations.mixture_create(),
+    )
+
+
 def bad_username_password_response(name, reason=None):
     if name == "id" and reason == None:
         reason = "Id does not exist"

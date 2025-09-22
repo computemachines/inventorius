@@ -1,12 +1,20 @@
 from inventorius.util import getIntArgs, admin_get_next
 from flask import Blueprint, request, Response, url_for
-from voluptuous.error import MultipleInvalid
-from inventorius.data_models import Bin, Sku, Batch, DataModelJSONEncoder as Encoder
+from voluptuous.error import MultipleInvalid, Invalid
+from inventorius.data_models import (
+    Bin,
+    Sku,
+    Batch,
+    DataModelJSONEncoder as Encoder,
+    mixture_components_to_bson,
+    quantity_to_bson,
+)
 from inventorius.db import db
 from inventorius.validation import item_move_schema, item_release_receive_schema
 import inventorius.util_error_responses as problem
 import inventorius.util_success_responses as success
 from inventorius.util import no_cache
+from inventorius.mixture import apply_draw, build_audit_event, get_mixture
 
 import json
 
@@ -72,12 +80,26 @@ def move_bin_contents_put(id):
     if not db.bin.find_one({"_id": destination}):
         return problem.missing_bin_response(destination)
 
+    mixture_doc = None
+
     if item_id.startswith("SKU"):
         if not db.sku.find_one({"_id": item_id}):
             return problem.missing_sku_response(item_id)
     elif item_id.startswith("BAT"):
         if not db.batch.find_one({"_id": item_id}):
             return problem.missing_batch_response(item_id)
+    elif item_id.startswith("MIX"):
+        mixture_doc = get_mixture(item_id)
+        if mixture_doc is None:
+            return problem.missing_mixture_response(item_id)
+        if mixture_doc.bin_id != id:
+            error = MultipleInvalid([
+                Invalid(
+                    "mixture is not stored in the specified source bin",
+                    path=["id"],
+                )
+            ])
+            return problem.invalid_params_response(error)
 
     availible_quantity = Bin.from_mongodb_doc(
         db.bin.find_one({"_id": id})).contents.get(item_id, 0)
@@ -85,12 +107,37 @@ def move_bin_contents_put(id):
         return problem.move_insufficient_quantity(
             name="quantity", availible=availible_quantity, requested=quantity)
 
+    if mixture_doc:
+        if quantity != availible_quantity:
+            error = MultipleInvalid([
+                Invalid(
+                    "partial mixture moves require the split operation",
+                    path=["quantity"],
+                )
+            ])
+            return problem.invalid_params_response(error)
+
     db.bin.update_one({"_id": id},
                       {"$inc": {f"contents.{item_id}": - quantity}})
     db.bin.update_one({"_id": destination},
                       {"$inc": {f"contents.{item_id}": quantity}})
     db.bin.update_one({"_id": id, f"contents.{item_id}": 0},
                       {"$unset": {f"contents.{item_id}": ""}})
+
+    if mixture_doc:
+        audit_event = build_audit_event(
+            "moved",
+            "bin-move",
+            details={
+                "from": id,
+                "to": destination,
+                "quantity": quantity,
+            },
+        )
+        db.mixture.update_one(
+            {"_id": item_id},
+            {"$set": {"bin_id": destination}, "$push": {"audit": audit_event}},
+        )
 
     return success.moved_response()
 
@@ -183,17 +230,63 @@ def bin_contents_post(bin_id):
     if not db.bin.find_one({"_id": bin_id}):
         return problem.missing_bin_response(bin_id)
 
+    mixture_doc = None
+
     if item_id.startswith("SKU"):
         if not db.sku.find_one({"_id": item_id}):
             return problem.missing_sku_response(item_id)
     elif item_id.startswith("BAT"):
         if not db.batch.find_one({"_id": item_id}):
             return problem.missing_batch_response(item_id)
+    elif item_id.startswith("MIX"):
+        mixture_doc = get_mixture(item_id)
+        if mixture_doc is None:
+            return problem.missing_mixture_response(item_id)
+        if mixture_doc.bin_id != bin_id:
+            error = MultipleInvalid([
+                Invalid(
+                    "mixture is not stored in the specified bin",
+                    path=["id"],
+                )
+            ])
+            return problem.invalid_params_response(error)
 
     old_quantity = db.bin.find_one(
         {"_id": bin_id}, {f"contents.{item_id}": 1})["contents"].get(item_id, 0)
     if quantity + old_quantity < 0:
         return problem.release_insufficient_quantity()
+
+    if mixture_doc:
+        if quantity > 0:
+            error = MultipleInvalid([
+                Invalid(
+                    "increase a mixture using the dedicated creation or split operations",
+                    path=["quantity"],
+                )
+            ])
+            return problem.invalid_params_response(error)
+        if quantity < 0:
+            release_quantity = -quantity
+            updated_mixture, event, _ = apply_draw(
+                mixture_doc,
+                release_quantity,
+                "bin-adjustment",
+                note="bin contents release",
+            )
+            event["event"] = "bin-release"
+            event.setdefault("details", {})["source"] = "bin-contents"
+            db.mixture.update_one(
+                {"_id": item_id},
+                {
+                    "$set": {
+                        "components": mixture_components_to_bson(
+                            updated_mixture.components
+                        ),
+                        "qty_total": quantity_to_bson(updated_mixture.qty_total),
+                    },
+                    "$push": {"audit": event},
+                },
+            )
 
     db.bin.update_one({"_id": bin_id},
                         {"$inc": {f"contents.{item_id}": quantity}})
