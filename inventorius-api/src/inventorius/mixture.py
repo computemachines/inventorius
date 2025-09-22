@@ -54,7 +54,7 @@ def _proportional_allocation(components, quantity):
     )
     requested = _as_decimal(quantity)
     if requested > total:
-        raise ValueError("insufficient quantity in mixture")
+        raise ValueError(f"insufficient quantity in mixture: requested {requested}, available {total}")
 
     allocated = Decimal("0")
     remaining_components = []
