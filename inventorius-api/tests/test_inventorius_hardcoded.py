@@ -112,6 +112,36 @@ def test_update_batch():
     state.teardown()
 
 
+def test_batch_traceability_fields():
+    state = InventoriusStateMachine()
+    codes = [
+        {"code": "LOTTRACE", "metadata": {"type": "lot"}},
+        {"code": "UPC123"},
+    ]
+    batch = Batch(
+        associated_codes=[],
+        id='BAT000010',
+        owned_codes=[],
+        sku_id=None,
+        produced_by_instance='INS000111',
+        qty_remaining=12.5,
+        codes=codes,
+    )
+    batch_id = state.new_anonymous_batch(batch=batch)
+    state.get_existing_batch(batch_id=batch_id)
+
+    state.update_batch(
+        batch_id=batch_id,
+        patch={
+            'codes': [{"code": "LOTTRACE"}],
+            'qty_remaining': 6,
+            'produced_by_instance': None,
+        },
+    )
+    state.get_existing_batch(batch_id=batch_id)
+    state.teardown()
+
+
 @pytest.mark.filterwarnings("ignore:.*example().*")
 def test_update_sku_batch():
     state = InventoriusStateMachine()
