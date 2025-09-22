@@ -7,6 +7,7 @@ import {
   BinState,
   isBatchState,
   isBinState,
+  isMixtureState,
   isSkuState,
   SearchResult,
   SearchResults as APISearchResults,
@@ -19,10 +20,12 @@ import { parse, stringifyUrl } from "query-string";
 import DataTable, { HeaderSpec } from "./DataTable";
 import { Pager } from "./Pager";
 
-function resultToType(result: SearchResult): "SKU" | "BATCH" | "BIN" {
+function resultToType(result: SearchResult): string {
   if (isBinState(result)) return "BIN";
+  if (isMixtureState(result)) return "MIXTURE";
   if (isSkuState(result)) return "SKU";
   if (isBatchState(result)) return "BATCH";
+  return "UNKNOWN";
 }
 
 function SearchResultsTable({
@@ -34,11 +37,24 @@ function SearchResultsTable({
   loading?: boolean;
   onClickLink?: React.MouseEventHandler<HTMLAnchorElement>;
 }) {
-  const searchResultToDataRow = (result: SearchResult) => ({
-    Identifier: result.id,
-    Name: !isBinState(result) ? result.name : "",
-    Type: resultToType(result),
-  });
+  const searchResultToDataRow = (result: SearchResult) => {
+    const type = resultToType(result);
+    const displayType =
+      type === "MIXTURE"
+        ? "Mixture"
+        : type === "UNKNOWN"
+        ? "Unknown"
+        : type.charAt(0) + type.slice(1).toLowerCase();
+    return {
+      Identifier: result.id,
+      Name: isBinState(result)
+        ? ""
+        : isMixtureState(result)
+        ? result.name || result.sku_id || ""
+        : result.name,
+      Type: displayType,
+    };
+  };
   const tabularData = searchResults.state.results.map(searchResultToDataRow);
   return (
     <DataTable

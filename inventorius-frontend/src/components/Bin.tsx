@@ -12,7 +12,7 @@ import { FourOhFour } from "./FourOhFour";
 
 import ItemLabel from "./ItemLabel";
 import PrintButton from "./PrintButton";
-import { Batch, Problem, Sku } from "../api-client/data-models";
+import { Batch, Mixture, Problem, Sku } from "../api-client/data-models";
 import * as e from "express";
 
 function BinContentsTable({
@@ -29,16 +29,29 @@ function BinContentsTable({
     async ({ api }: FrontloadContext) => ({
       detailedContents: await Promise.all(
         Object.entries(contents).map(async function ([id, quantity]) {
-          let item: Problem | Sku | Batch;
+          let item: Problem | Sku | Batch | Mixture | undefined;
           if (id.startsWith("SKU")) {
             item = await api.getSku(id);
           } else if (id.startsWith("BAT")) {
             item = await api.getBatch(id);
+          } else if (id.startsWith("MIX")) {
+            item = await api.getMixture(id);
           } else {
             Sentry.captureException(
               "Bad id provided to bindcontentstable(contents)"
             );
           }
+          if (!item)
+            return {
+              id,
+              quantity,
+              kind: "problem" as const,
+              problem: {
+                kind: "problem" as const,
+                title: "Unknown resource",
+                type: "invalid-resource",
+              },
+            };
           if (item.kind == "problem")
             return { id, quantity, kind: "problem", problem: item };
           else return { id, quantity, kind: item.kind, item: item };
@@ -66,8 +79,18 @@ function BinContentsTable({
       return {
         Identifier: row.id,
         Quantity: row.quantity,
-        Type: row.kind,
-        Name: row.kind != "problem" ? row.item.state.name : null,
+        Type:
+          row.kind == "problem"
+            ? "Problem"
+            : row.kind === "mixture"
+            ? "Mixture"
+            : row.kind.toUpperCase(),
+        Name:
+          row.kind == "problem"
+            ? null
+            : row.kind === "mixture"
+            ? row.item.state.sku_id
+            : row.item.state.name,
       };
     });
   } else {
