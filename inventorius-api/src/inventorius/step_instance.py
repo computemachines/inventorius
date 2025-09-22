@@ -61,7 +61,7 @@ def _prepare_consumption_plan(
     available_in_bin = float(bin_state.contents.get(resource_id, 0))
     if available_in_bin < quantity:
         return problem.move_insufficient_quantity(
-            name="quantity", availible=available_in_bin, requested=quantity
+            name="quantity", available=available_in_bin, requested=quantity
         )
 
     if resource_id.startswith("BAT"):
