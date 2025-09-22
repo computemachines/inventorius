@@ -117,13 +117,13 @@ def batch_patch(id):
             db.batch.update_one({"_id": id}, {"$unset": {"qty_remaining": ""}})
         else:
             db.batch.update_one({"_id": id},
-                                {"$set": {"qty_remaining": new_batch_doc['qty_remaining']}})
+                                {"$set": {"qty_remaining": json['qty_remaining']}})
     if "codes" in json.keys():
         if json["codes"] is None:
             db.batch.update_one({"_id": id}, {"$unset": {"codes": ""}})
         else:
             db.batch.update_one({"_id": id},
-                                {"$set": {"codes": new_batch_doc['codes']}})
+                                {"$set": {"codes": json['codes']}})
 
     updated_batch = Batch.from_mongodb_doc(db.batch.find_one({"_id": id}))
     return BatchEndpoint.from_batch(updated_batch).redirect_response(False)
