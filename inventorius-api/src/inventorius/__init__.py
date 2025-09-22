@@ -20,6 +20,8 @@ from inventorius.batch import batch
 from inventorius.mixture import mixture
 from inventorius.inventorius import inventorius
 from inventorius.sku import sku
+from inventorius.step_template import step_template
+from inventorius.step_instance import step_instance
 # from inventorius.file_upload import file_upload
 # from inventorius.data_models import Bin, MyEncoder, Uniq, Batch, Sku
 from inventorius.user import user
@@ -61,6 +63,8 @@ app.register_blueprint(batch)
 app.register_blueprint(mixture)
 app.register_blueprint(inventorius)
 app.register_blueprint(sku)
+app.register_blueprint(step_template)
+app.register_blueprint(step_instance)
 # app.register_blueprint(file_upload)
 app.register_blueprint(user)
 

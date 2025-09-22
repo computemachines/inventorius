@@ -118,6 +118,20 @@ def missing_mixture_response(id):
     )
 
 
+def missing_step_template_response(template_id):
+    return missing_resource_response(
+        url_for("step_template.step_template_get", template_id=template_id),
+        operations.step_template_create(),
+    )
+
+
+def missing_step_instance_response(instance_id):
+    return missing_resource_response(
+        url_for("step_instance.step_instance_get", instance_id=instance_id),
+        operations.step_instance_create(),
+    )
+
+
 def bad_username_password_response(name, reason=None):
     if name == "id" and reason == None:
         reason = "Id does not exist"

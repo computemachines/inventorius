@@ -252,3 +252,93 @@ mixture_split_schema = Schema(
         "note": str,
     }
 )
+
+
+step_requirement_schema = Schema(
+    {
+        Required("sku_id"): prefixed_id("SKU"),
+        "quantity": NoneOr(All(Any(int, float), Range(min=0, min_included=False))),
+    },
+    extra=ALLOW_EXTRA,
+)
+
+
+operator_schema = Any(
+    All(str, non_empty_string),
+    All(dict, Length(min=1)),
+)
+
+
+step_template_create_schema = Schema(
+    {
+        Required("template_id"): prefixed_id("TPL"),
+        Required("name"): All(str, non_empty_string),
+        "description": str,
+        Required("inputs"): All([step_requirement_schema], Length(min=1)),
+        Required("outputs"): All([step_requirement_schema], Length(min=1)),
+        "metadata": dict,
+    }
+)
+
+
+step_template_patch_schema = Schema(
+    {
+        Required("template_id"): prefixed_id("TPL"),
+        "name": NoneOr(All(str, non_empty_string)),
+        "description": NoneOr(str),
+        "inputs": NoneOr(All([step_requirement_schema], Length(min=1))),
+        "outputs": NoneOr(All([step_requirement_schema], Length(min=1))),
+        "metadata": NoneOr(dict),
+    }
+)
+
+
+step_instance_consumed_schema = Schema(
+    {
+        Required("resource_id"): Any(prefixed_id("BAT"), prefixed_id("MIX")),
+        Required("quantity"): All(Any(int, float), Range(min=0, min_included=False)),
+        Required("bin_id"): prefixed_id("BIN"),
+        "resource_type": Any("batch", "mixture"),
+    },
+    extra=ALLOW_EXTRA,
+)
+
+
+step_instance_produced_schema = Schema(
+    {
+        Required("batch_id"): prefixed_id("BAT"),
+        Required("sku_id"): prefixed_id("SKU"),
+        Required("quantity"): All(Any(int, float), Range(min=0, min_included=False)),
+        "name": str,
+        "owned_codes": code_list_schema,
+        "associated_codes": code_list_schema,
+        "props": props_schema,
+        "bin_id": prefixed_id("BIN"),
+        "codes": codes_schema,
+        "notes": str,
+    },
+    extra=ALLOW_EXTRA,
+)
+
+
+step_instance_create_schema = Schema(
+    {
+        Required("instance_id"): prefixed_id("INS"),
+        Required("template_id"): prefixed_id("TPL"),
+        Required("operator"): operator_schema,
+        "notes": NoneOr(str),
+        "metadata": dict,
+        Required("consumed"): All([step_instance_consumed_schema], Length(min=1)),
+        Required("produced"): All([step_instance_produced_schema], Length(min=1)),
+    }
+)
+
+
+step_instance_patch_schema = Schema(
+    {
+        Required("instance_id"): prefixed_id("INS"),
+        "operator": NoneOr(operator_schema),
+        "notes": NoneOr(str),
+        "metadata": NoneOr(dict),
+    }
+)
