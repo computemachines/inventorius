@@ -1,0 +1,108 @@
+---
+- name: Restore MongoDB database to Inventorius
+  hosts: inventorius
+  become: true
+  vars:
+    app_dir: "{% if inventory_hostname == 'localhost' %}./dev-deployment{% else %}/opt/inventorius{% endif %}"
+    backup_file: ""  # Must be provided via -e backup_file=filename.gz
+    local_backup_dir: "./backups"
+    remote_backup_path: "{{ app_dir }}/restore_backup.gz"
+
+  pre_tasks:
+    - name: Validate backup file parameter
+      ansible.builtin.fail:
+        msg: "Please specify backup_file parameter with -e backup_file=filename.gz"
+      when: backup_file == ""
+
+    - name: Check if local backup file exists
+      delegate_to: localhost
+      become: no
+      ansible.builtin.stat:
+        path: "{{ local_backup_dir }}/{{ backup_file }}"
+      register: local_backup_stat
+
+    - name: Fail if local backup file does not exist
+      ansible.builtin.fail:
+        msg: "Local backup file {{ local_backup_dir }}/{{ backup_file }} does not exist"
+      when: not local_backup_stat.stat.exists
+
+  tasks:
+    - name: Upload backup file to server
+      ansible.builtin.copy:
+        src: "{{ local_backup_dir }}/{{ backup_file }}"
+        dest: "{{ remote_backup_path }}"
+        mode: '0644'
+
+    - name: Check if MongoDB container is running
+      ansible.builtin.shell:
+        cmd: docker ps --filter "name={% if inventory_hostname == 'localhost' %}dev-deployment-mongo-1{% else %}inventorius-mongo-1{% endif %}" --filter "status=running" -q
+        chdir: "{{ app_dir }}"
+      register: mongo_status
+      
+    - name: Fail if MongoDB is not running
+      ansible.builtin.fail:
+        msg: "MongoDB container is not running. Please start the MongoDB service first."
+      when: mongo_status.stdout == ""
+
+    - name: Stop services that depend on MongoDB (optional safety measure)
+      ansible.builtin.shell:
+        cmd: "{% if inventory_hostname == 'localhost' %}docker compose stop api frontend{% else %}docker-compose stop api frontend{% endif %}"
+        chdir: "{{ app_dir }}"
+      ignore_errors: yes
+
+    - name: Wait a moment for services to stop
+      ansible.builtin.pause:
+        seconds: 3
+
+    - name: Restore MongoDB from backup (with drop existing data)
+      ansible.builtin.shell:
+        cmd: cat "{{ remote_backup_path }}" | docker exec -i "{% if inventory_hostname == 'localhost' %}dev-deployment-mongo-1{% else %}inventorius-mongo-1{% endif %}" mongorestore --archive --gzip --drop
+      register: restore_result
+
+    - name: Stop all services for complete reload
+      ansible.builtin.shell:
+        cmd: "{% if inventory_hostname == 'localhost' %}docker compose down{% else %}docker-compose down{% endif %}"
+        chdir: "{{ app_dir }}"
+
+    - name: Wait for complete shutdown
+      ansible.builtin.pause:
+        seconds: 5
+
+    - name: Start all services fresh (complete cluster reload)
+      ansible.builtin.shell:
+        cmd: "{% if inventory_hostname == 'localhost' %}docker compose up -d{% else %}docker-compose up -d{% endif %}"
+        chdir: "{{ app_dir }}"
+
+    - name: Wait for services to be ready after reload
+      ansible.builtin.pause:
+        seconds: 15
+
+    - name: Reload nginx configuration to clear DNS cache
+      ansible.builtin.shell:
+        cmd: docker exec "{% if inventory_hostname == 'localhost' %}dev-deployment-nginx-1{% else %}inventorius-nginx-1{% endif %}" nginx -s reload
+      ignore_errors: yes
+
+    - name: Verify MongoDB is accessible after restore
+      ansible.builtin.shell:
+        cmd: docker exec "{% if inventory_hostname == 'localhost' %}dev-deployment-mongo-1{% else %}inventorius-mongo-1{% endif %}" mongosh --eval "db.adminCommand('ping')"
+      register: mongo_ping
+
+    - name: Verify web application is responding
+      ansible.builtin.shell:
+        cmd: "{% if inventory_hostname == 'localhost' %}curl -s -o /dev/null -w '%{http_code}' http://localhost{% else %}curl -s -o /dev/null -w '%{http_code}' http://localhost{% endif %}"
+      register: web_response
+      ignore_errors: yes
+
+    - name: Clean up temporary backup file
+      ansible.builtin.file:
+        path: "{{ remote_backup_path }}"
+        state: absent
+
+    - name: Display restore information
+      ansible.builtin.debug:
+        msg: 
+          - "Database restore completed successfully"
+          - "Restored from: {{ backup_file }}"
+          - "MongoDB ping result: {{ mongo_ping.stdout | regex_search('ok.*[0-9]') }}"
+          - "Web application status: {{ web_response.stdout | default('Unable to check') }} (200 or 301 expected)"
+          - "Complete cluster reload performed to ensure clean network state"

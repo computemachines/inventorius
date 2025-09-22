@@ -1,0 +1,161 @@
+---
+- name: Deploy Inventorius Development Environment
+  hosts: inventorius
+  become: "{{ ansible_become | default(true) }}"
+  vars:
+    app_dir: "./dev-deployment"
+    image_dir: "./dev-deployment/images"
+    dev_env: true
+
+  tasks:
+    # Ensure directories exist
+    - name: Ensure application directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ app_dir }}"
+        - "{{ app_dir }}/nginx"
+        - "{{ image_dir }}"
+
+    # Copy development configuration files
+    - name: Copy docker-compose.dev.yml
+      ansible.builtin.copy:
+        src: docker-compose.dev.yml
+        dest: "{{ app_dir }}/docker-compose.yml"
+        mode: '0644'
+      register: compose_file
+      
+    - name: Fix build context paths in docker-compose.yml
+      ansible.builtin.replace:
+        path: "{{ app_dir }}/docker-compose.yml"
+        regexp: 'context: \.\./inventorius-'
+        replace: 'context: ../../inventorius-'
+      
+    - name: Copy nginx development configuration
+      ansible.builtin.copy:
+        src: ../nginx/dev.conf
+        dest: "{{ app_dir }}/nginx/dev.conf"
+        mode: '0644'
+      register: nginx_conf
+      
+    - name: Fix nginx volume path in docker-compose.yml
+      ansible.builtin.replace:
+        path: "{{ app_dir }}/docker-compose.yml"
+        regexp: '\.\./nginx/dev\.conf'
+        replace: './nginx/dev.conf'
+
+    # Create basic environment file for development
+    - name: Create development environment file
+      ansible.builtin.copy:
+        content: |
+          # Development Environment Variables
+          NODE_ENV=development
+          INVENTORIUS_DEBUG=true
+          INVENTORIUS_LOG_LEVEL=debug
+        dest: "{{ app_dir }}/.env"
+        mode: '0600'
+      register: env_file
+
+    # Handle container images if they exist
+    - name: Check for local container images
+      delegate_to: localhost
+      become: no
+      ansible.builtin.stat:
+        path: "../dist/{{ item }}.tar.gz"
+      loop:
+        - "inventorius-api"
+        - "inventorius-frontend"
+      register: local_images
+      ignore_errors: yes
+
+    - name: Copy container images if they exist
+      ansible.builtin.copy:
+        src: "../dist/{{ item.item }}.tar.gz"
+        dest: "{{ image_dir }}/{{ item.item }}.tar.gz"
+      loop: "{{ local_images.results }}"
+      when: item.stat.exists
+      register: image_copy
+
+    - name: Load container images if copied
+      ansible.builtin.command:
+        cmd: "docker load -i {{ image_dir }}/{{ item.item }}.tar.gz"
+      loop: "{{ local_images.results }}"
+      when: item.stat.exists
+      ignore_errors: yes
+
+    # Stop any existing services
+    - name: Stop existing services
+      ansible.builtin.shell:
+        cmd: docker compose down
+        chdir: "{{ app_dir }}"
+      ignore_errors: yes
+
+    # Start development environment
+    - name: Start development environment with docker compose
+      ansible.builtin.shell:
+        cmd: docker compose up -d --build
+        chdir: "{{ app_dir }}"
+      register: compose_up
+
+    # Wait for services to be ready
+    - name: Wait for MongoDB to be ready
+      ansible.builtin.wait_for:
+        timeout: 30
+        
+    - name: Verify MongoDB is running
+      ansible.builtin.shell:
+        cmd: docker exec dev-deployment-mongo-1 mongosh --eval "db.adminCommand('ping')"
+      register: mongo_ping
+      retries: 5
+      delay: 5
+      until: mongo_ping.rc == 0
+
+    # Optionally restore database from dump if it exists
+    - name: Check if dump.archive exists locally
+      delegate_to: localhost
+      become: no
+      ansible.builtin.stat:
+        path: "../dump.archive"
+      register: dump_file
+
+    - name: Copy and restore database dump if available
+      block:
+        - name: Upload database dump file
+          ansible.builtin.copy:
+            src: "../dump.archive"
+            dest: "{{ app_dir }}/dump.archive"
+            mode: '0644'
+
+        - name: Restore database from dump
+          ansible.builtin.shell:
+            cmd: docker exec -i dev-deployment-mongo-1 mongorestore --archive < "{{ app_dir }}/dump.archive"
+            chdir: "{{ app_dir }}"
+          register: restore_result
+
+        - name: Clean up dump file
+          ansible.builtin.file:
+            path: "{{ app_dir }}/dump.archive"
+            state: absent
+
+        - name: Display restore result
+          ansible.builtin.debug:
+            msg: "Database restored from dump.archive"
+      when: dump_file.stat.exists
+
+    # Display service status
+    - name: Get service status
+      ansible.builtin.shell:
+        cmd: docker compose ps
+        chdir: "{{ app_dir }}"
+      register: services_status
+
+    - name: Display deployment information
+      ansible.builtin.debug:
+        msg: 
+          - "Development environment deployed successfully"
+          - "Services status:"
+          - "{{ services_status.stdout_lines }}"
+          - "MongoDB ping: {{ mongo_ping.stdout | regex_search('ok.*[0-9]') | default('Failed') }}"
+          - "Access the application at: http://{{ inventory_hostname }}"

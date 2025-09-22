@@ -1,0 +1,65 @@
+---
+- name: Backup MongoDB database from Inventorius
+  hosts: inventorius
+  become: true
+  vars:
+    app_dir: /opt/inventorius
+    backup_dir: "{{ app_dir }}/backups"
+    backup_filename: "inventorius_backup_{{ ansible_date_time.date }}_{{ ansible_date_time.hour }}-{{ ansible_date_time.minute }}.gz"
+    local_backup_dir: "./backups"
+
+  tasks:
+    - name: Ensure remote backup directory exists
+      ansible.builtin.file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Ensure local backup directory exists
+      delegate_to: localhost
+      become: no
+      ansible.builtin.file:
+        path: "{{ local_backup_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check if MongoDB container is running
+      ansible.builtin.shell:
+        cmd: /opt/bin/docker-compose ps mongo --format json
+        chdir: "{{ app_dir }}"
+      register: mongo_status
+      
+    - name: Fail if MongoDB is not running
+      ansible.builtin.fail:
+        msg: "MongoDB container is not running"
+      when: mongo_status.stdout == "" or (mongo_status.stdout | from_json).State != "running"
+
+    - name: Create MongoDB backup
+      ansible.builtin.shell:
+        cmd: docker exec inventorius-mongo-1 mongodump --archive --gzip > "{{ backup_dir }}/{{ backup_filename }}"
+        chdir: "{{ app_dir }}"
+      register: backup_result
+
+    - name: Verify backup file was created
+      ansible.builtin.stat:
+        path: "{{ backup_dir }}/{{ backup_filename }}"
+      register: backup_file_stat
+
+    - name: Fail if backup file was not created
+      ansible.builtin.fail:
+        msg: "Backup file was not created successfully"
+      when: not backup_file_stat.stat.exists
+
+    - name: Download backup to local machine
+      ansible.builtin.fetch:
+        src: "{{ backup_dir }}/{{ backup_filename }}"
+        dest: "{{ local_backup_dir }}/"
+        flat: yes
+
+    - name: Display backup information
+      ansible.builtin.debug:
+        msg: 
+          - "Backup completed successfully"
+          - "Remote backup: {{ backup_dir }}/{{ backup_filename }}"
+          - "Local backup: {{ local_backup_dir }}/{{ backup_filename }}"
+          - "Backup size: {{ backup_file_stat.stat.size | human_readable }}"

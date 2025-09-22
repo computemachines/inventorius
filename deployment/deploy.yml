@@ -7,7 +7,7 @@
     image_dir: /opt/inventorius/images
     meili_master_key: "{{ lookup('env', 'MEILI_MASTER_KEY') | default('change_this_key', true) }}"
     domain: "inventori.us"
-    email: "your@email.com"
+    email: "tparker@computemachines.com"
     services_needing_restart: []
 
   tasks:

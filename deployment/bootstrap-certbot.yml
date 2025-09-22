@@ -54,7 +54,6 @@
             -v "{{ cert_dir }}:/etc/letsencrypt" \
             certbot/certbot \
             certonly \
-            --dry-run \
             --standalone \
             --non-interactive \
             --agree-tos \

@@ -43,7 +43,7 @@ def batches_post():
     # Add text index if not yet created
     # TODO: This should probably be turned into a global flag
     if "name_text" not in db.batch.index_information().keys():
-        db.sku.create_index([("name", TEXT)])
+        db.batch.create_index([("name", TEXT)])
 
     return BatchEndpoint.from_batch(batch).created_success_response()
 
