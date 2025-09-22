@@ -320,6 +320,39 @@ def codes_from_bson(codes):
     return [normalize_code_entry(entry) for entry in codes]
 
 
+def mixture_components_to_bson(components):
+    if components is None:
+        return None
+
+    bson_components = []
+    for component in components:
+        if component is None:
+            continue
+        component_copy = {
+            "batch_id": component["batch_id"],
+            "qty_initial": quantity_to_bson(component.get("qty_initial")),
+            "qty_remaining": quantity_to_bson(component.get("qty_remaining")),
+        }
+        bson_components.append(component_copy)
+    return bson_components
+
+
+def mixture_components_from_bson(components):
+    if components is None:
+        return None
+
+    normalized = []
+    for component in components:
+        if component is None:
+            continue
+        normalized.append({
+            "batch_id": component["batch_id"],
+            "qty_initial": quantity_from_bson(component.get("qty_initial")),
+            "qty_remaining": quantity_from_bson(component.get("qty_remaining")),
+        })
+    return normalized
+
+
 class Props(DataModel, HasAdditionalFields):
     cost_per_case = DataField(
         "cost_per_case", value_to_bson=currency_to_bson, bson_to_value=currency_from_bson)
@@ -386,3 +419,23 @@ class Batch(DataModel):
             self.codes = []
         else:
             self.codes = [normalize_code_entry(entry) for entry in self.codes]
+
+
+class Mixture(DataModel):
+    mix_id = DataField("_id", required=True)
+    sku_id = DataField("sku_id", required=True)
+    bin_id = DataField("bin_id", required=True)
+    components = DataField("components", default=[],
+                           value_to_bson=mixture_components_to_bson,
+                           bson_to_value=mixture_components_from_bson)
+    qty_total = DataField("qty_total", value_to_bson=quantity_to_bson,
+                          bson_to_value=quantity_from_bson)
+    created_by = DataField("created_by")
+    audit = DataField("audit", default=[])
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if self.components is None:
+            self.components = []
+        if self.audit is None:
+            self.audit = []
