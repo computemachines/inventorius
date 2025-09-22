@@ -17,6 +17,7 @@ from flask import Flask
 
 from inventorius.bin import bin
 from inventorius.batch import batch
+from inventorius.mixture import mixture
 from inventorius.inventorius import inventorius
 from inventorius.sku import sku
 # from inventorius.file_upload import file_upload
@@ -57,6 +58,7 @@ BAD_REQUEST = ('Bad Request', 400)
 
 app.register_blueprint(bin)
 app.register_blueprint(batch)
+app.register_blueprint(mixture)
 app.register_blueprint(inventorius)
 app.register_blueprint(sku)
 # app.register_blueprint(file_upload)
