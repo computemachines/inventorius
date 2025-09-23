@@ -30,10 +30,11 @@ import Release from "./Release";
 import Audit from "./Audit";
 import Mixture from "./Mixture";
 import StepTemplateList from "./StepTemplateList";
-import StepTemplateDetail from "./StepTemplateDetail";
+import StepTemplate from "./StepTemplate";
 import StepInstanceList from "./StepInstanceList";
 import StepInstanceDetail from "./StepInstanceDetail";
 import TraceabilityReport from "./TraceabilityReport";
+import NewStepTemplate from "./NewStepTemplate";
 
 /**
  * Main app component
@@ -81,6 +82,9 @@ function App() {
                 <Route path="/new/batch">
                   <NewBatch />
                 </Route>
+                <Route path="/new/step-template">
+                  <NewStepTemplate />
+                </Route>
                 <Route path="/bin/:id">
                   <Bin />
                 </Route>
@@ -102,8 +106,11 @@ function App() {
                 <Route exact path="/step-templates">
                   <StepTemplateList />
                 </Route>
+                <Route path="/step-template/:id/edit">
+                  <StepTemplate editable />
+                </Route>
                 <Route path="/step-template/:id">
-                  <StepTemplateDetail />
+                  <StepTemplate />
                 </Route>
                 <Route exact path="/step-instances">
                   <StepInstanceList />

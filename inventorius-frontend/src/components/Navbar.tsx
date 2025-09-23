@@ -40,6 +40,9 @@ function Navbar({
         <NavLink className="navlink" to="/new/batch">
           New Batch
         </NavLink>
+        <NavLink className="navlink" to="/new/step-template">
+          New Step Template
+        </NavLink>
       </NavlinkDropdown>
       <NavLink className="navlink" to="/move">
         Move
