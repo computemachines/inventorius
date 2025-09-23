@@ -1,0 +1,155 @@
+.step-template,
+.step-template-form {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.step-template .info-item-description,
+.step-template__description,
+.step-template__metadata {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.step-template__identifier {
+  font-family: "Roboto Mono", monospace;
+  font-size: 1.1rem;
+}
+
+.step-template__empty {
+  color: #4b4b4b;
+}
+
+.step-template__textarea {
+  width: 100%;
+  min-height: 6rem;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  border: 1px solid #b5b5b5;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.step-template__io-list {
+  margin: 0;
+  padding-left: 1.5rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.step-template__io-item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.step-template__io-quantity {
+  font-size: 0.9rem;
+  color: #4b4b4b;
+}
+
+.step-template__io-editor {
+  width: 100%;
+}
+
+.step-template__io-rows {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.step-template__io-row {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) minmax(8rem, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.step-template__io-row input {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.25rem;
+  border: 1px solid #b5b5b5;
+  font-size: 1rem;
+}
+
+.step-template__add-button,
+.step-template__remove-row {
+  border: none;
+  border-radius: 0.25rem;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.step-template__add-button {
+  background-color: #26532b;
+  color: #fff;
+  margin-top: 0.5rem;
+}
+
+.step-template__add-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.step-template__remove-row {
+  background-color: #e6e6e6;
+}
+
+.step-template__io-helper {
+  font-size: 0.9rem;
+  color: #4b4b4b;
+  margin: 0.5rem 0 0;
+}
+
+.step-template__metadata-pre {
+  background-color: #f4f4f4;
+  padding: 0.75rem;
+  border-radius: 0.25rem;
+  width: 100%;
+  overflow: auto;
+}
+
+.step-template__actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.step-template__delete-button {
+  background: none;
+  border: none;
+  color: #b02929;
+  cursor: pointer;
+  font-style: italic;
+  padding: 0;
+}
+
+.step-template__delete-button:hover,
+.step-template__delete-button:focus {
+  text-decoration: underline;
+}
+
+.step-template-form__fieldset {
+  border: 1px solid #d0d0d0;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.step-template-form__fieldset legend {
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .step-template__io-row {
+    grid-template-columns: 1fr;
+  }
+
+  .step-template__remove-row {
+    justify-self: start;
+  }
+}

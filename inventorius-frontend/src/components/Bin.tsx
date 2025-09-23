@@ -12,7 +12,13 @@ import { FourOhFour } from "./FourOhFour";
 
 import ItemLabel from "./ItemLabel";
 import PrintButton from "./PrintButton";
-import { Batch, Mixture, Problem, Sku } from "../api-client/data-models";
+import {
+  Batch,
+  Mixture,
+  MixtureState,
+  Problem,
+  Sku,
+} from "../api-client/data-models";
 import * as e from "express";
 
 function BinContentsTable({
@@ -76,6 +82,14 @@ function BinContentsTable({
       if (row.kind == "problem") {
         Sentry.captureException(new Error("bin contents table bad row"));
       }
+      let name: string | null = null;
+      if (row.kind === "mixture") {
+        const mixtureState = row.item.state as MixtureState;
+        name = mixtureState.sku_id || null;
+      } else if (row.kind !== "problem") {
+        name = "name" in row.item.state ? row.item.state.name || null : null;
+      }
+
       return {
         Identifier: row.id,
         Quantity: row.quantity,
@@ -85,12 +99,7 @@ function BinContentsTable({
             : row.kind === "mixture"
             ? "Mixture"
             : row.kind.toUpperCase(),
-        Name:
-          row.kind == "problem"
-            ? null
-            : row.kind === "mixture"
-            ? row.item.state.sku_id
-            : row.item.state.name,
+        Name: name || "",
       };
     });
   } else {

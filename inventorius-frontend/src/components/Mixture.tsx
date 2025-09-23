@@ -110,14 +110,22 @@ function Mixture(): JSX.Element {
     return <div>Connection Error</div>;
   }
 
-  if (!data || data.mixture.kind === "problem") {
-    if (data?.mixture.type === "missing-resource") {
+  const mixtureResult = data?.mixture;
+
+  if (!mixtureResult || mixtureResult.kind === "problem") {
+    if (mixtureResult?.kind === "problem" && mixtureResult.type === "missing-resource") {
       return <FourOhFour />;
     }
-    return <h2>{data?.mixture.title || "Unable to load mixture"}</h2>;
+    return (
+      <h2>
+        {mixtureResult?.kind === "problem"
+          ? mixtureResult.title
+          : "Unable to load mixture"}
+      </h2>
+    );
   }
 
-  const mixture = data.mixture;
+  const mixture = mixtureResult;
 
   const componentRows = mixture.state.components.map((component) => ({
     Batch: component.batch_id,

@@ -337,7 +337,15 @@ export class Mixture extends RestEndpoint {
   };
 
   private instantiate(json: unknown): Mixture {
-    return new Mixture({ ...(json as object), hostname: this.operations.draw.hostname });
+    const payload = json as {
+      state: MixtureState;
+      operations: RestOperation[];
+    };
+    return new Mixture({
+      state: payload.state,
+      operations: payload.operations || [],
+      hostname: this.operations.draw.hostname,
+    });
   }
 
   async draw(params: MixtureDrawParams): Promise<Mixture | Problem> {
