@@ -184,7 +184,7 @@ function NewStepTemplate() {
         setToastContent({
           content: (
             <p>
-              Template {" "}
+              Template{" "}
               <Link to={generatePath("/step-template/:id", { id: trimmedTemplateId })}>
                 {trimmedTemplateId}
               </Link>{" "}
